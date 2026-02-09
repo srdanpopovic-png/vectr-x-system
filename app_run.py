@@ -179,7 +179,7 @@ if not is_athlete and not is_view_mode:
             'v': ",".join(map(str,v1)), 'l': ",".join(map(str,l1)), 'hr': ",".join(map(str,h1)), 
             'mode': 'view'
         })
-        full_url = "https://vectr-x.streamlit.app/?" + share_query
+        full_url = "https://vectr-x-system-4udwk2bg799tpknjor4hmb.streamlit.app/?" + share_query
         mail_link = f"mailto:?subject=VECTR-X%20Lab%20Report&body=Hi!%20Hier%20sind%20deine%20Performance-Daten:%0D%0A%0D%0A{urllib.parse.quote(full_url)}"
         st.markdown(f'<a href="{mail_link}" class="share-btn">✉ SEND TO ATHLETE</a>', unsafe_allow_html=True)
 
@@ -256,13 +256,38 @@ if metrics_t1:
         res_status, res_class = (t("ULTRA STABIL", "ULTRA STABLE"), "res-ultra") if s_val < 0.45 else (t("METABOLISCH RESILIENT", "METABOLIC RESILIENT"), "res-stable") if s_val < 0.75 else (t("STABILITÄTS-LIMIT", "STABILITY LIMIT"), "res-limit") if s_val < 1.1 else (t("KRITISCHER BEREICH", "CRITICAL ZONE"), "res-critical")
         st.markdown(f'<div class="stability-box {res_class}">// {t("METABOLISCHE RESILIENZ", "METABOLIC RESILIENCE")} // <br><span style="font-size:18px; font-weight:700;">{res_status}</span><br><span style="font-size:12px; opacity:0.8;">VECTR-SCORE: {int(metrics_t1["stab"])}%</span></div>', unsafe_allow_html=True)
 
-    with tabs[1]:
+    with tabs[1]: # ZONEN
+        st.markdown(f"### // {t('ZONEN', 'ZONES')}")
         l1, l2, fmax = metrics_t1["lt1"], metrics_t1["lt2"], metrics_t1["fatmax"]
         hf1, hf2, hf_f = metrics_t1["hf_lt1"], metrics_t1["hf_lt2"], metrics_t1["hf_fatmax"]
-        z_data = [("blue-neon", t("RECOVERY", "RECOVERY"), f"< {fmax*0.9:.1f} KM/H", f"> {fmt_pace(fmax*0.9)}", f"< {hf_f-10}"), ("green-neon", t("LONG RUN", "LONG RUN"), f"{fmax*0.9:.1f}-{l1:.1f} KM/H", f"{fmt_pace(fmax*0.9)}-{fmt_pace(l1)}", f"{hf_f-10} - {hf1}"), ("yellow-neon", t("TEMPO", "TEMPO"), f"{l1:.1f}-{l2*0.95:.1f} KM/H", f"{fmt_pace(l1)}-{fmt_pace(l2*0.95)}", f"{hf1} - {int(hf2*0.95)}"), ("orange-neon", t("SCHWELLE", "THRESHOLD"), f"{l2*0.95:.1f}-{l2*1.05:.1f} KM/H", f"{fmt_pace(l2*0.95)}-{fmt_pace(l2*1.05)}", f"{int(hf2*0.95)} - {int(hf2*1.03)}"), ("red-neon", t("HIT", "HIT"), f"> {l2*1.05:.1f} KM/H", f"< {fmt_pace(l2*1.05)}", f"> {int(hf2*1.03)}")]
-        for cls, n, sp, pc, hf_r in z_data:
-            st.markdown(f'<div class="set-card {cls}" style="display: flex; justify-content: space-between; align-items: center; min-height: 80px;"><div style="flex: 1;"><span class="card-title">{n}</span><span class="card-val-big">{sp}</span><span class="uni-pace" style="display:block; margin-top:4px; padding-left:2px;">{pc} /KM</span></div><div class="hf-section"><span class="hf-label">{t("ZIEL HF", "TARGET HR")}</span><span class="hf-val">{hf_r}</span><span class="hf-label">{t("BPM", "BPM")}</span></div></div>', unsafe_allow_html=True)
-
+        
+        z_data = [
+            ("blue-neon", t("RECOVERY", "RECOVERY"), f"< {fmax*0.9:.1f}", "KM/H", f"< {hf_f-10}"),
+            ("green-neon", t("LONG RUN", "LONG RUN"), f"{fmax*0.9:.1f}-{l1:.1f}", "KM/H", f"{hf_f-10}-{hf1}"),
+            ("yellow-neon", t("TEMPO", "TEMPO"), f"{l1:.1f}-{l2*0.95:.1f}", "KM/H", f"{hf1}-{int(hf2*0.95)}"),
+            ("orange-neon", t("SCHWELLE", "THRESHOLD"), f"{l2*0.95:.1f}-{l2*1.05:.1f}", "KM/H", f"{int(hf2*0.95)}-{int(hf2*1.03)}"),
+            ("red-neon", t("HIT", "HIT"), f"> {l2*1.05:.1f}", "KM/H", f"> {int(hf2*1.03)}")
+        ]
+        
+        for cls, n, sp, unit, hf_r in z_data:
+            st.markdown(f"""
+                <div class="set-card {cls}" style="padding: 12px; min-height: 70px; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div style="flex: 1;">
+                            <span class="card-title" style="font-size: 11px; margin-bottom: 4px;">{n}</span>
+                            <div style="display: flex; align-items: baseline; gap: 4px;">
+                                <span style="font-size: 24px; font-weight: 700; color: white; font-family: monospace;">{sp}</span>
+                                <span style="font-size: 12px; color: #8E8E93; font-weight: 600;">{unit}</span>
+                            </div>
+                        </div>
+                        <div style="text-align: right; min-width: 80px;">
+                            <span style="font-size: 9px; font-weight: 800; color: #FF3131; text-transform: uppercase;">Ziel HF</span>
+                            <span style="font-size: 20px; font-weight: 700; color: #FF3131; font-family: monospace; display: block; line-height: 1;">{hf_r}</span>
+                            <span style="font-size: 9px; font-weight: 700; color: #FF3131; opacity: 0.8;">BPM</span>
+                        </div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
     with tabs[2]:
         f_d, f_cs, f_dr = (500, 1.02, 0.02) if level_select=="Elite" else (350, 1.0, 0.04) if level_select=="Ambitioniert" else (150, 0.96, 0.08)
         for dist, name in [(5000, "5K SPRINT"), (10000, "10K POWER"), (21097, t("HALBMARATHON", "HALF MARATHON")), (42195, t("MARATHON", "FULL MARATHON"))]:
