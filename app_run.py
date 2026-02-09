@@ -151,9 +151,9 @@ st.markdown("""
 w_def = float(params.get("w", 75.0))
 h_def = float(params.get("h", 180.0))
 s_def = float(params.get("s", 42.0))
-v_def = [float(x) for x in params.get("v", "10,12,14,16").split(",")]
-l_def = [float(x) for x in params.get("l", "1.2,1.8,3.5,6.5").split(",")]
-hr_def = [float(x) for x in params.get("hr", "135,148,162,178").split(",")]
+v_def = [float(x) for x in params.get("v", "10,12,14,16,18").split(",")]
+l_def = [float(x) for x in params.get("l", "1.2,1.8,3.5,6.5,7.8").split(",")]
+hr_def = [float(x) for x in params.get("hr", "135,148,162,178,184").split(",")]
 
 # --- SIDEBAR LOGIK (V8 FULL) ---
 if not is_athlete:
@@ -174,10 +174,10 @@ if not is_athlete:
         def input_block(label, key_p, def_v, def_l, def_h):
             st.markdown(f"**// {label}**")
             c1, c2, c3 = st.columns(3)
-            v = [c1.number_input(f"SPD_{i+1}", key=f"{key_p}v{i}", value=def_v[i], step=0.5) for i in range(4)]
-            l = [c2.number_input(f"LAC_{i+1}", key=f"{key_p}l{i}", value=def_l[i], step=0.1) for i in range(4)]
+            v = [c1.number_input(f"SPD_{i+1}", key=f"{key_p}v{i}", value=def_v[i], step=0.5) for i in range(5)]
+            l = [c2.number_input(f"LAC_{i+1}", key=f"{key_p}l{i}", value=def_l[i], step=0.1) for i in range(5)]
             # FIX: step=1.0 für HF, da def_h floats sind
-            h = [c3.number_input(f"HF_{i+1}", key=f"{key_p}h{i}", value=def_h[i], step=1.0) for i in range(4)]
+            h = [c3.number_input(f"HF_{i+1}", key=f"{key_p}h{i}", value=def_h[i], step=1.0) for i in range(5)]
             return v, l, h
 
         v1, l1, h1 = input_block(t("LIVE_SITZUNG", "LIVE_SESSION"), "t1", v_def, l_def, hr_def)
