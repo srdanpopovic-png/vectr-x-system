@@ -346,30 +346,45 @@ if metrics_t1:
             st.markdown(f'<div class="set-card blue-neon" style="min-height: auto;"><span class="card-title" style="margin-bottom: 12px;">{name}</span><div style="display: flex; align-items: baseline;"><span class="card-val-big" style="color:#00F2FF;">{fmt_time(t_s)}</span><span class="uni-pace" style="padding-left: 15px;">{fmt_pace((dist/t_s)*3.6)} /KM</span></div></div>', unsafe_allow_html=True)
 
     with tabs[3]:
-        # ORIGINAL TEXTE UND FARBEN
+        # --- VECTR-X // SET CARD ---
         st.markdown(f"### // {t('VECTR-X // SET CARD', 'VECTR-X // SET CARD')}")
-        
-        bench_vo2 = get_benchmark_html(metrics_t1['vo2max'], "vo2max", "#FF3131")
-        st.markdown(f"""<div class="set-card-tall red-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("MOTOR // VO2MAX (est.)", "VO2MAX // ENGINE (est.)")}</span><div class="val-unit-row"><span class="card-val-big" style="font-size: 48px;">{int(metrics_t1['vo2max'])}</span><span class="card-unit-white">ML/MIN/KG</span></div></div>{bench_vo2}</div><p class="card-expl">{t('Die aerobe Kapazität. Die absolute Basis für deine Performance.', 'Your engine size (estimated). Foundation of your aerobic capacity.')}</p></div>""", unsafe_allow_html=True)
-        
-        c1, c2 = st.columns(2)
-        with c1: 
-            bench_fat = get_benchmark_html(metrics_t1['fatmax'], "fatmax", "#34C759")
-            st.markdown(f"""<div class="set-card-tall green-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("BASE // FATMAX", "BASE // FATMAX")}</span><div class="val-unit-row"><span class="card-val-big">{metrics_t1['fatmax']:.1f}</span><span class="card-unit-white">KM/H</span></div><span class="uni-pace" style="margin-top:2px;">{fmt_pace(metrics_t1['fatmax'])} /KM</span></div>{bench_fat}</div><p class="card-expl">{t('Dein Flow-Modus. Maximale Energie aus Fettstoffwechsel für endlose Ausdauer.', 'Flow State. Max energy from fat oxidation.')}</p></div>""", unsafe_allow_html=True)
-        
-        with c2: 
-            bench_re = get_benchmark_html(metrics_t1['re'], "re", "#00F2FF")
-            st.markdown(f"""<div class="set-card-tall blue-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("SPEED-TAX", "SPEED-TAX")}</span><div class="val-unit-row"><span class="card-val-big">{metrics_t1['re']:.2f}</span><span class="card-unit-white">MMOL/KMH</span></div></div>{bench_re}</div><p class="card-expl">{t('Deine Laktat-Steuer. Der energetische Preis für jedes km/h Beschleunigung.', 'Lactate cost per km/h. Your price for speed.')}</p></div>""", unsafe_allow_html=True)
-        
-        c3, c4 = st.columns(2)
-        with c3: 
-            bench_lt2 = get_benchmark_html(metrics_t1['lt2'], "lt2", "#FF9500")
-            st.markdown(f"""<div class="set-card-tall orange-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("SCHWELLE // iANS", "THRESHOLD // iANS")}</span><div class="val-unit-row"><span class="card-val-big">{metrics_t1['lt2']:.2f}</span><span class="card-unit-white">KM/H</span></div><span class="uni-pace" style="margin-top:2px;">{fmt_pace(metrics_t1['lt2'])} /KM</span></div>{bench_lt2}</div><p class="card-expl">{t('Dein High-Speed Limit. Maximale Pace für 45-60min kontrollierte Belastung.', "Max sustainable pace. Your metabolic red line.")}</p></div>""", unsafe_allow_html=True)
-        
-        with c4:
-            res_col = "#FFCC00" if metrics_t1['is_stable'] else "#FF3131"
-            res_neon = "yellow-neon" if metrics_t1['is_stable'] else "red-neon"
-            bench_stab = get_benchmark_html(metrics_t1['stab'], "stab", res_col)
-            st.markdown(f"""<div class="set-card-tall {res_neon}"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("METABOLISCHE RESILIENZ", "METABOLIC RESILIENCE")}</span><div class="val-unit-row"><span class="card-val-big">{int(metrics_t1['stab'])}</span><span class="card-unit-white">%</span></div></div>{bench_stab}</div><p class="card-expl">{t('Deine System-Härte. Wie stabil dein Motor läuft, nachdem die Schwelle überschritten hast.', 'System stability under high-speed load.')}</p></div>""", unsafe_allow_html=True)
-else:
-    st.error("Warten auf Eingabedaten...")
+    
+    # MOTOR // VO2MAX - Schriftgröße auf Standard vereinheitlicht
+    bench_vo2 = get_benchmark_html(metrics_t1['vo2max'], "vo2max", "#FF3131")
+    st.markdown(f"""
+        <div class="set-card-tall red-neon">
+            <div class="card-content-split">
+                <div class="card-left">
+                    <span class="card-title">{t("MOTOR // VO2MAX (est.)", "VO2MAX // ENGINE (est.)")}</span>
+                    <div class="val-unit-row">
+                        <span class="card-val-big">{int(metrics_t1['vo2max'])}</span>
+                        <span class="card-unit-white">ML/MIN/KG</span>
+                    </div>
+                </div>
+                {bench_vo2}
+            </div>
+            <p class="card-expl">{t('Die aerobe Kapazität. Die absolute Basis für deine Performance.', 'Your engine size (estimated). Foundation of your aerobic capacity.')}</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # REIHE 2: BASE & SPEED-TAX
+    c1, c2 = st.columns(2)
+    with c1: 
+        bench_fat = get_benchmark_html(metrics_t1['fatmax'], "fatmax", "#34C759")
+        st.markdown(f"""<div class="set-card-tall green-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("BASE // FATMAX", "BASE // FATMAX")}</span><div class="val-unit-row"><span class="card-val-big">{metrics_t1['fatmax']:.1f}</span><span class="card-unit-white">KM/H</span></div><span class="uni-pace" style="margin-top:2px;">{fmt_pace(metrics_t1['fatmax'])} /KM</span></div>{bench_fat}</div><p class="card-expl">{t('Dein Flow-Modus. Maximale Energie aus Fettstoffwechsel für endlose Ausdauer.', 'Flow State. Max energy from fat oxidation.')}</p></div>""", unsafe_allow_html=True)
+    
+    with c2: 
+        bench_re = get_benchmark_html(metrics_t1['re'], "re", "#00F2FF")
+        st.markdown(f"""<div class="set-card-tall blue-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("SPEED-TAX", "SPEED-TAX")}</span><div class="val-unit-row"><span class="card-val-big">{metrics_t1['re']:.2f}</span><span class="card-unit-white">MMOL/KMH</span></div></div>{bench_re}</div><p class="card-expl">{t('Deine Laktat-Steuer. Der energetische Preis für jedes km/h Beschleunigung.', 'Lactate cost per km/h. Your price for speed.')}</p></div>""", unsafe_allow_html=True)
+    
+    # REIHE 3: SCHWELLE & RESILIENZ
+    c3, c4 = st.columns(2)
+    with c3: 
+        bench_lt2 = get_benchmark_html(metrics_t1['lt2'], "lt2", "#FF9500")
+        st.markdown(f"""<div class="set-card-tall orange-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("SCHWELLE // iANS", "THRESHOLD // iANS")}</span><div class="val-unit-row"><span class="card-val-big">{metrics_t1['lt2']:.2f}</span><span class="card-unit-white">KM/H</span></div><span class="uni-pace" style="margin-top:2px;">{fmt_pace(metrics_t1['lt2'])} /KM</span></div>{bench_lt2}</div><p class="card-expl">{t('Dein High-Speed Limit. Maximale Pace für 45-60min kontrollierte Belastung.', "Max sustainable pace. Your metabolic red line.")}</p></div>""", unsafe_allow_html=True)
+    
+    with c4:
+        res_col = "#FFCC00" if metrics_t1['is_stable'] else "#FF3131"
+        res_neon = "yellow-neon" if metrics_t1['is_stable'] else "red-neon"
+        bench_stab = get_benchmark_html(metrics_t1['stab'], "stab", res_col)
+        st.markdown(f"""<div class="set-card-tall {res_neon}"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("METABOLISCHE RESILIENZ", "METABOLIC RESILIENCE")}</span><div class="val-unit-row"><span class="card-val-big">{int(metrics_t1['stab'])}</span><span class="card-unit-white">%</span></div></div>{bench_stab}</div><p class="card-expl">{t('Deine System-Härte. Wie stabil dein Motor läuft, nachdem die Schwelle überschritten hast.', 'System stability under high-speed load.')}</p></div>""", unsafe_allow_html=True)
