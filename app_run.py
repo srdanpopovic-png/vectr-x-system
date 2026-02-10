@@ -246,10 +246,10 @@ if metrics_t1:
             </p>
         </div>
     """, unsafe_allow_html=True)
-    tabs = st.tabs([t("[ STATUS ]", "[ STATUS ]"), t("[ ZONEN ]", "[ ZONES ]"), t("[ PROGNOSE ]", "[ FORECAST ]"), t("[ SET CARD ]", "[ SET CARD ]")])
+    tabs = st.tabs([t("[ ANALYSE ]", "[ ANALYSIS ]"), t("[ ZONEN ]", "[ ZONES ]"), t("[ PROGNOSE ]", "[ FORECAST ]"), t("[ SET CARD ]", "[ SET CARD ]")])
 
-    with tabs[0]: # STATUS
-        st.markdown(f"### // {t('DEIN IST-ZUSTAND', 'CURRENT STATE')}")
+    with tabs[0]: # ANALYSE
+        st.markdown(f"### // {t('DEINE ANALYSE', 'YOUR ANALYSIS')}")
         cols = st.columns(4)
         m_show = [(t("BASE // FATMAX", "BASE // FATMAX"), "fatmax", "KM/H", True), (t("SCHWELLE // iANS", "THRESHOLD // iANS"), "lt2", "KM/H", True), (t("SPEED-TAX", "SPEED-TAX"), "re", "MMOL/KMH", False), (t("VO2MAX (est.)", "VO2MAX (est.)"), "vo2max", "ML/MIN/KG", False)]
         
