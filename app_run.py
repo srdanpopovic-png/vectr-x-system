@@ -234,11 +234,6 @@ else:
     level_select = "Ambitioniert"
     metrics_t1 = calc_metrics(v1, l1, h1, height, weight, sw)
     metrics_t2 = None
-    
-    if is_view_mode:
-        st.markdown(f"<div style='text-align:right; color:#00F2FF; font-family:monospace; font-size:10px; margin-bottom:10px;'>VECTR-X // ENCRYPTED VIEW MODE</div>", unsafe_allow_html=True)
-    else:
-        st.markdown(f"### // ATHLETE VIEW // DATA LOCKED")
 
 # --- APP RENDERER ---
 if metrics_t1:
