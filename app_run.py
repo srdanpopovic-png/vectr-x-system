@@ -179,7 +179,7 @@ if not is_athlete and not is_view_mode:
             return v, l, h
 
         v1, l1, h1 = input_block(t("LIVE_SITZUNG", "LIVE_SESSION"), "t1", v_def, l_def, hr_def)
-        metrics_t1 = calc_metrics(v1, l1, h1, height, weight, sw)
+        metrics_t1 = calc_metrics(v1, l1, h1, height, weight)
         
         metrics_t2 = None
         if compare_mode:
