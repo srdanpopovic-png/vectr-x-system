@@ -16,6 +16,15 @@ params = st.query_params
 is_athlete = "w" in params
 is_view_mode = params.get("mode", "edit") == "view"
 
+# --- NEU: ATHLETEN-ANTENNE (GLOBAL) ---
+# Diese Variablen holen sich die Daten direkt aus der URL, sobald die App startet
+f_name = params.get("fn", "")
+l_name = params.get("ln", "")
+bday = params.get("bd", "")
+sport = params.get("sp", "")
+gender = params.get("g", "")
+full_n = f"{f_name} {l_name}".strip()
+
 # --- SPRACH-ENGINE ---
 if 'lang' not in st.session_state: st.session_state.lang = 'GER'
 def t(german, english): return german if st.session_state.lang == 'GER' else english
@@ -142,10 +151,28 @@ hr_def = [float(x) for x in params.get("hr", "135,148,162,178,184").split(",")]
 if not is_athlete and not is_view_mode:
     with st.sidebar:
         st.markdown(f"## // VECTR-X LAB")
+        
+        # Reihe 1: Name
+        c_n1, c_n2 = st.columns(2)
+        f_name = c_n1.text_input("VORNAME", value=params.get("fn", ""))
+        l_name = c_n2.text_input("NACHNAME", value=params.get("ln", ""))
+    
+        # Reihe 2: Stammdaten
+        c_s1, c_s2 = st.columns(2)
+        # Logik für das automatische Setzen des Geschlechts aus der URL
+        g_idx = 0 if params.get("g") == "M" else 1 if params.get("g") == "W" else 2
+        gender = c_s1.selectbox("GESCHLECHT", ["M", "W", "D"], index=g_idx)
+        bday = c_s2.text_input("GEBURTSTAG", value=params.get("bd", "01.01.1990"), help="Format: DD.MM.YYYY")
+    
+        # Reihe 3: Disziplin
+        sport = st.text_input("SPORTART / POSITION", value=params.get("sp", "RUNNING"))
+    
+        full_n = f"{f_name} {l_name}".strip()
+        st.write("---")
         st.session_state.lang = st.radio("LANGUAGE", ["GER", "ENG"], horizontal=True)
         st.write("---")
         st.subheader(t("// BIOMETRIE //", "// BIOMETRICS //"))
-        # 1 Nachkommastelle für Biometrie
+        
         weight = st.number_input(t("Gewicht (kg)", "Weight"), value=w_def, step=0.1, format="%.1f")
         height = st.number_input(t("Größe (cm)", "Height"), value=h_def, step=0.1, format="%.1f")
         sw = st.number_input(t("Schulterbreite (cm)", "Shoulder"), value=s_def, step=0.1, format="%.1f")
@@ -157,11 +184,9 @@ if not is_athlete and not is_view_mode:
         def input_block(label, key_p, def_v, def_l, def_h):
             st.markdown(f"**// {label}**")
             c1, c2, c3 = st.columns(3)
-            # FIX: HF Value muss INT sein, wenn Step=1 (INT) ist.
-            v = [c1.number_input(f"SPD_{i+1}", key=f"{key_p}v{i}", value=def_v[i] if i<len(def_v) else def_v[-1]+2, step=0.1, format="%.1f") for i in range(5)]
-            l = [c2.number_input(f"LAC_{i+1}", key=f"{key_p}l{i}", value=def_l[i] if i<len(def_l) else def_l[-1]+2, step=0.1, format="%.1f") for i in range(5)]
-            # Hier ist der Fix: int(...) um den Value
-            h = [c3.number_input(f"HF_{i+1}", key=f"{key_p}h{i}", value=int(def_h[i]) if i<len(def_h) else int(def_h[-1]+10), step=1, format="%d") for i in range(5)]
+            v = [c1.number_input(f"SPD_{i+1}", key=f"{key_p}v{i}", value=def_v[i], step=0.1, format="%.1f") for i in range(len(def_v))]
+            l = [c2.number_input(f"LAC_{i+1}", key=f"{key_p}l{i}", value=def_l[i], step=0.1, format="%.1f") for i in range(len(def_l))]
+            h = [c3.number_input(f"HF_{i+1}", key=f"{key_p}h{i}", value=int(def_h[i]), step=1, format="%d") for i in range(len(def_h))]
             return v, l, h
 
         v1, l1, h1 = input_block(t("LIVE_SITZUNG", "LIVE_SESSION"), "t1", v_def, l_def, hr_def)
@@ -169,26 +194,47 @@ if not is_athlete and not is_view_mode:
         
         metrics_t2 = None
         if compare_mode:
+            # Standardwerte für Vergleich (etwas schlechter simuliert)
             v2, l2, h2 = input_block(t("ARCHIV_DATEN", "ARCHIVE_DATA"), "t2", v_def, [x+0.5 for x in l_def], [x+5 for x in hr_def])
             metrics_t2 = calc_metrics(v2, l2, h2, height, weight, sw)
 
-        # SHARE BUTTON MIT VIEW-MODE
+       # --- SHARE BUTTON LOGIK ---
         st.write("---")
         share_query = urllib.parse.urlencode({
+            'fn': f_name,
+            'ln': l_name,
+            'bd': bday,
+            'sp': sport,
+            'g': gender,
             'w': weight, 'h': height, 's': sw, 
-            'v': ",".join(map(str,v1)), 'l': ",".join(map(str,l1)), 'hr': ",".join(map(str,h1)), 
+            'v': ",".join(map(str,v1)), 
+            'l': ",".join(map(str,l1)), 
+            'hr': ",".join(map(str,h1)), 
             'mode': 'view'
         })
+        
         full_url = "https://vectr-x-system-4udwk2bg799tpknjor4hmb.streamlit.app/?" + share_query
         mail_link = f"mailto:?subject=VECTR-X%20Lab%20Report&body=Hi!%20Hier%20sind%20deine%20Performance-Daten:%0D%0A%0D%0A{urllib.parse.quote(full_url)}"
         st.markdown(f'<a href="{mail_link}" class="share-btn">✉ SEND TO ATHLETE</a>', unsafe_allow_html=True)
 
 else:
-    # DATA LOCKED VIEW
-    weight, height, sw, v1, l1, h1 = w_def, h_def, s_def, v_def, l_def, hr_def
+    # --- ATHLETEN ANSICHT (EMPFÄNGER-LOGIK) ---
+    # Hier liest das Handy die Namen und Daten aus der URL
+    f_name = params.get("fn", "")
+    l_name = params.get("ln", "")
+    full_n = f"{f_name} {l_name}".strip()
+    bday = params.get("bd", "")
+    sport = params.get("sp", "")
+    gender = params.get("g", "")
+    
+    # Die biometrischen Daten aus der URL laden
+    weight, height, sw = w_def, h_def, s_def
+    v1, l1, h1 = v_def, l_def, hr_def
+    
     level_select = "Ambitioniert"
     metrics_t1 = calc_metrics(v1, l1, h1, height, weight, sw)
     metrics_t2 = None
+    
     if is_view_mode:
         st.markdown(f"<div style='text-align:right; color:#00F2FF; font-family:monospace; font-size:10px; margin-bottom:10px;'>VECTR-X // ENCRYPTED VIEW MODE</div>", unsafe_allow_html=True)
     else:
@@ -196,6 +242,15 @@ else:
 
 # --- APP RENDERER ---
 if metrics_t1:
+    full_n = f"{f_name} {l_name}".strip()
+    st.markdown(f"""
+        <div style='text-align: center; margin-bottom: 25px; padding: 15px; border-bottom: 1px solid #1C1C1E;'>
+            <h2 style='color: white; letter-spacing: 5px; margin-bottom: 0;'>// {full_n.upper() if full_n else 'GUEST'} //</h2>
+            <p style='color: #00F2FF; font-family: "Orbitron", sans-serif; font-size: 13px; letter-spacing: 2px; margin-top: 8px; opacity: 0.8;'>
+                {sport.upper()} | {gender} | {bday}
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
     tabs = st.tabs([t("[ ANALYSE ]", "[ ANALYZE ]"), t("[ ZONEN ]", "[ ZONES ]"), t("[ PROGNOSE ]", "[ FORECAST ]"), t("[ SET CARD ]", "[ SET CARD ]")])
 
     with tabs[0]: # ANALYSE
