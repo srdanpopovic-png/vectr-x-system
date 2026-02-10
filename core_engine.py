@@ -1,11 +1,7 @@
 import numpy as np
 
 def get_high_end_curve(x, y):
-    """ 
-    VECTR-X SPLINE ENGINE
-    Monotone Kubische Spline-Interpolation.
-    Verhindert das 'Oszillieren' der Kurve zwischen Messpunkten.
-    """
+    """ VECTR-X SPLINE ENGINE (Monotone Kubische Spline-Interpolation) """
     x, y = np.array(x, dtype=float), np.array(y, dtype=float)
     n = len(x)
     dx, dy = np.diff(x), np.diff(y)
@@ -18,7 +14,6 @@ def get_high_end_curve(x, y):
             d[i] = (w1 + w2) / (w1/m[i-1] + w2/m[i])
     d[0], d[-1] = m[0], m[-1]
     
-    # 500 Punkte für maximale "Smoothness" in der Grafik
     x_fine = np.linspace(x[0], x[-1], 500)
     y_fine = []
     for xi in x_fine:
@@ -31,113 +26,83 @@ def get_high_end_curve(x, y):
         y_fine.append(val)
     return x_fine, np.array(y_fine)
 
-def calc_metrics(v, l, h, height=180, weight=75, sw=False):
-    """
-    VECTR-X CORE LOGIC
-    Berechnet: FatMax, iANS, Speed-Tax und Metabolische Resilienz
-    """
+def calc_metrics(v, l, h, height=180, weight=75):
+    """ VECTR-X CORE LOGIC V9 - Physiologisch kalibriert """
     if not v or len(v) < 3: return None
     
-    # 1. Kurvenfitting
     v_fine, l_fine = get_high_end_curve(v, l)
     h_fine = np.interp(v_fine, v, h)
-    
-    # Basis-Laktat (Minimum der Kurve)
     baseline = min(l_fine)
+    v_max_test = max(v)
     
-    # --- STATION 1: FATMAX (BASE) ---
-    # Definition: Erster Anstieg um +0.3 bis +0.5 mmol über Baseline
-    # Wir nehmen +0.4 als robusten Mittelwert für "Base Core"
+    # --- 1. FATMAX (BASE) ---
     fatmax_v = v_fine[np.abs(l_fine - (baseline + 0.4)).argmin()]
-    if fatmax_v < min(v): fatmax_v = min(v)
     
-    # --- STATION 2: SCHWELLE / iANS (THRESHOLD) ---
-    # Wir suchen den Punkt, wo die Kurve "bricht" (Gradient wird steil).
+    # --- 2. SCHWELLE / iANS (THRESHOLD) ---
+    # Dynamischer Gradient: Profis puffern Laktat besser, die Kurve knickt später
+    # Wir passen den Schwellen-Trigger an die vMax an
+    grad_trigger = 0.65 if v_max_test < 16 else 0.85
     grads = np.gradient(l_fine, v_fine)
+    
     try:
-        # Suche nach dem Punkt, wo der Anstieg signifikant wird (> 0.6 mmol/l pro km/h)
-        # und weit genug vom Start entfernt ist.
-        idx_curvature = np.where(grads > 0.60)[0]
-        
+        idx_curvature = np.where(grads > grad_trigger)[0]
         if len(idx_curvature) > 0:
-            # Nimm den ersten Punkt, der diese Steilheit erreicht
             lt2_v = v_fine[idx_curvature[0]]
         else:
-            raise ValueError("Kein klarer Anstieg gefunden")
-            
-        # Sicherheits-Check: Schwelle muss signifikant über FatMax liegen
-        if lt2_v <= fatmax_v + 1.0:
-            # Fallback auf klassisches Modell: Baseline + 1.5 mmol
             lt2_v = v_fine[np.abs(l_fine - (baseline + 1.5)).argmin()]
-            
     except:
-        # Fallback bei unsauberen Daten: Baseline + 1.5 mmol (Dickhuth-Proxy)
         lt2_v = v_fine[np.abs(l_fine - (baseline + 1.5)).argmin()]
     
-    # --- STATION 3: SPEED-TAX (EFFICIENCY) ---
-    # Kostenberechnung: (Laktat an Schwelle - Laktat an Base) / (Speed an Schwelle - Speed an Base)
+    # --- 3. SPEED-TAX (ECONOMY) ---
     l_at_lt2 = np.interp(lt2_v, v_fine, l_fine)
     l_at_fmax = np.interp(fatmax_v, v_fine, l_fine)
-    
     speed_range = lt2_v - fatmax_v
-    if speed_range > 0.5: # Division durch Null verhindern
-        speed_tax = (l_at_lt2 - l_at_fmax) / speed_range
-    else:
-        speed_tax = 0.0 # Sollte physiologisch nicht passieren
+    speed_tax = (l_at_lt2 - l_at_fmax) / max(0.5, speed_range)
     
-    # --- STATION 4: METABOLISCHE RESILIENZ (REALITY CHECK) ---
-    # Wie verhält sich das System NACH der Schwelle?
-    # Wir messen den Gradienten zwischen Schwelle und Abbruch.
+    # --- 4. METABOLISCHE RESILIENZ (STABILITY) ---
     idx_lt2 = np.searchsorted(v_fine, lt2_v)
     idx_max = len(v_fine) - 1
-    
     if idx_lt2 < idx_max:
-        d_lac_red = l_fine[idx_max] - l_fine[idx_lt2]
-        d_spd_red = v_fine[idx_max] - v_fine[idx_lt2]
-        if d_spd_red > 0.1:
-            slope_red = d_lac_red / d_spd_red
-        else:
-            slope_red = 3.0 # Penalty für sofortigen Abbruch
+        slope_red = (l_fine[idx_max] - l_fine[idx_lt2]) / (v_fine[idx_max] - v_fine[idx_lt2])
     else:
-        slope_red = 3.0 # Penalty
-        
-    # DIE NEUE FORMEL (Hyperbolischer Zerfall)
-    # Score = 100 / (1 + (k * slope))
-    # k = 1.5 (Härtefaktor)
-    # Slope 0.2 -> Score 77 (Elite)
-    # Slope 1.0 -> Score 40 (Amateur)
+        slope_red = 2.5
     resilience_score = 100 / (1 + (slope_red * 1.5))
     
-    # --- STATION 5: VO2MAX (ENGINE ESTIMATE) ---
-    # ACSM Formel für Laufen: VO2 = 3.5 + (0.2 * Speed_m_min) + Grade...
-    # Vereinfacht für Flachland: ca. 3.5 * Speed_kmh
-    # Wir machen es etwas präziser für Läufer:
-    v_max = max(v)
-    rel_vo2max = (v_max * 3.5) # Klassische Approximation
+    # --- 5. VO2MAX PRO (Leger & Mercier + Weight Factor) ---
+    # Grund-VO2max nach Speed
+    base_vo2 = (3.125 * v_max_test) + 3.5
+    # Gewichts-Effizienz: Leichtere Läufer haben oft einen mechanischen Vorteil
+    # Referenzgewicht 70kg. Pro 5kg drunter/drüber +/- 1.5% Effizienz
+    weight_corr = 1.0 + ((70 - weight) * 0.003)
+    rel_vo2max = base_vo2 * weight_corr
     
-    # --- RETURN DICT ---
+    # --- 6. PROGNOSEN (Riegel-Logik) ---
+    def riegel_predict(v_ref, dist_target, score):
+        # k-Faktor (Ausdauer-Exponent) basierend auf Resilience
+        # Elite (Score 90+) k=1.05 | Amateur (Score 40) k=1.12
+        k = 1.15 - (score / 1000)
+        t_ref = 15.0 / v_ref # Zeit für 15km an der Schwelle
+        t_target = t_ref * (dist_target / 15.0)**k
+        return t_target
+
+    t_hm = riegel_predict(lt2_v, 21.0975, resilience_score)
+    t_m = riegel_predict(lt2_v, 42.195, resilience_score)
+
     return {
-        "fatmax": fatmax_v, 
-        "lt1": fatmax_v, # Legacy Support
+        "fatmax": fatmax_v,
         "lt2": lt2_v,
-        
-        "hf_fatmax": int(np.interp(fatmax_v, v_fine, h_fine)),
-        "hf_lt1": int(np.interp(fatmax_v, v_fine, h_fine)),
-        "hf_lt2": int(np.interp(lt2_v, v_fine, h_fine)),
-        
-        # Die neuen VECTR-X Metriken
-        "re": round(speed_tax, 2), # SPEED-TAX
-        "slope": round(slope_red, 2), # Der reine Gradient (für Debugging)
-        "stab": int(resilience_score), # Der Score (0-100)
-        "is_stable": resilience_score > 60, # Grenzwert für "Gelb" (war vorher 70, jetzt härter -> 60 ist ok)
-        
-        "vo2max": rel_vo2max,
-        "v_vo2max": v_max,
-        
-        # Grafik-Daten
-        "v_fine": v_fine, "l_fine": l_fine, "h_fine": h_fine,
-        "v_orig": np.array(v), "l_orig": np.array(l),
-        
-        # Biometrie
-        "frontal_area": 0.029 * (height**0.725) * (weight**0.425) / 100
+        "vo2max": round(rel_vo2max, 1),
+        "re": round(speed_tax, 2),
+        "stab": int(resilience_score),
+        "is_stable": resilience_score > 60,
+        "hm_time": t_hm, # In Dezimalstunden für die Formatierungsfunktion
+        "m_time": t_m,
+        "v_fine": v_fine, "l_fine": l_fine, "h_fine": h_fine
     }
+
+def format_time(decimal_hours):
+    """ Wandelt Dezimalstunden in HH:MM:SS um """
+    hours = int(decimal_hours)
+    minutes = int((decimal_hours - hours) * 60)
+    seconds = int(((decimal_hours - hours) * 60 - minutes) * 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
