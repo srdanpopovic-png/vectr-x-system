@@ -249,7 +249,7 @@ if metrics_t1:
     tabs = st.tabs([t("[ ANALYSE ]", "[ ANALYZE ]"), t("[ ZONEN ]", "[ ZONES ]"), t("[ PROGNOSE ]", "[ FORECAST ]"), t("[ SET CARD ]", "[ SET CARD ]")])
 
     with tabs[0]: # ANALYSE
-        st.markdown(f"### // {t('BIOMETRISCHER_SCAN', 'BIOMETRIC_SCAN')}")
+        st.markdown(f"### // {t('SYSTEM-ANALYSE // STATUS', 'SYSTEM ANALYSIS // STATUS')}")
         cols = st.columns(4)
         m_show = [(t("BASE // FATMAX", "BASE // FATMAX"), "fatmax", "KM/H", True), (t("SCHWELLE // iANS", "THRESHOLD // iANS"), "lt2", "KM/H", True), (t("SPEED-TAX", "SPEED-TAX"), "re", "MMOL/KMH", False), (t("VO2MAX (est.)", "VO2MAX (est.)"), "vo2max", "ML/MIN/KG", False)]
         
