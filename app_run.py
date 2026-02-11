@@ -232,7 +232,13 @@ else:
     v1, l1, h1 = v_def, l_def, hr_def
     
     level_select = "Ambitioniert"
-    metrics_t1 = calculate_metrics(v1, l1, h1, height, weight, level=level_select)
+    metrics_t1 = calculate_metrics(
+        np.array(v1), 
+        np.array(l1), 
+        np.array(h1), 
+        vm_def, 
+        is_all_out=ao_def
+    )
     metrics_t2 = None
 
 # --- APP RENDERER ---
