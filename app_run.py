@@ -340,69 +340,26 @@ if metrics_t1:
         st.markdown(f'<div class="stability-box {res_class}">// {t("METABOLIC PROFILE", "METABOLIC PROFILE")} // <br><span style="font-size:18px; font-weight:700;">{m_type}</span><br><span style="font-size:12px; opacity:0.8;">FLUSH RATE™: {int(metrics_t1["stab"])}%</span></div>', unsafe_allow_html=True)
 
     with tabs[1]: # ZONEN
-        st.markdown(f"### // {t('TRAININGSZONEN', 'TRAINING ZONES')}")
-        
-        # Definition der Zonen-Bereiche (basierend auf der Schwelle lt2)
-        zones = [
-            ("Z1 // RECOM", 0.60, 0.75, "#00F2FF", t("Regeneration & Kompensation", "Recovery & Compensation")),
-            ("Z2 // GA1", 0.75, 0.85, "#34C759", t("Grundlagenausdauer 1 (Fettstoffwechsel)", "Base Endurance 1 (Fat Max)")),
-            ("Z3 // GA2", 0.85, 0.92, "#FFCC00", t("Grundlagenausdauer 2 (Kraftausdauer)", "Base Endurance 2 (Tempo)")),
-            ("Z4 // EB", 0.92, 1.00, "#FF9500", t("Entwicklungsbereich (Schwelle)", "Threshold Development")),
-            ("Z5 // SB", 1.00, 1.10, "#FF3131", t("Spitzenbereich (VO2max Training)", "Peak Performance / VO2max"))
+        st.markdown(f"### // {t('ZONEN', 'ZONES')}")
+        l1, l2, fmax = metrics_t1["lt1"], metrics_t1["lt2"], metrics_t1["fatmax"]
+        hf1, hf2, hf_f = metrics_t1["hf_lt1"], metrics_t1["hf_lt2"], metrics_t1["hf_fatmax"]
+        z_data = [
+            ("blue-neon", t("RECOVERY", "RECOVERY"), f"< {fmax*0.9:.1f}", "KM/H", f"< {hf_f-10}"),
+            ("green-neon", t("LONG RUN", "LONG RUN"), f"{fmax*0.9:.1f}-{l1:.1f}", "KM/H", f"{hf_f-10}-{hf1}"),
+            ("yellow-neon", t("TEMPO", "TEMPO"), f"{l1:.1f}-{l2*0.95:.1f}", "KM/H", f"{hf1}-{int(hf2*0.95)}"),
+            ("orange-neon", t("SCHWELLE", "THRESHOLD"), f"{l2*0.95:.1f}-{l2*1.05:.1f}", "KM/H", f"{int(hf2*0.95)}-{int(hf2*1.03)}"),
+            ("red-neon", t("HIT", "HIT"), f"> {l2*1.05:.1f}", "KM/H", f"> {int(hf2*1.03)}")
         ]
+        for cls, n, sp, unit, hf_r in z_data:
+            st.markdown(f"""<div class="set-card {cls}" style="padding: 12px; min-height: 70px; margin-bottom: 10px;"><div style="display: flex; justify-content: space-between; align-items: flex-start;"><div style="flex: 1;"><span class="card-title" style="font-size: 11px; margin-bottom: 4px;">{n}</span><div style="display: flex; align-items: baseline; gap: 4px;"><span style="font-size: 24px; font-weight: 700; color: white; font-family: monospace;">{sp}</span><span style="font-size: 12px; color: #8E8E93; font-weight: 600;">{unit}</span></div></div><div style="text-align: right; min-width: 80px;"><span style="font-size: 9px; font-weight: 800; color: #FF3131; text-transform: uppercase;">Ziel HF</span><span style="font-size: 20px; font-weight: 700; color: #FF3131; font-family: monospace; display: block; line-height: 1;">{hf_r}</span><span style="font-size: 9px; font-weight: 700; color: #FF3131; opacity: 0.8;">BPM</span></div></div></div>""", unsafe_allow_html=True)
 
-        for name, low_mult, high_mult, color, desc in zones:
-            v_low = metrics_t1['lt2'] * low_mult
-            v_high = metrics_t1['lt2'] * high_mult
-            
-            # Pace-Berechnung
-            p_low = fmt_pace(v_low)
-            p_high = fmt_pace(v_high)
+    with tabs[2]: # PROGNOSE
+        f_d, f_cs, f_dr = (500, 1.02, 0.02) if level_select=="Elite" else (350, 1.0, 0.04) if level_select=="Ambitioniert" else (150, 0.96, 0.08)
+        for dist, name in [(5000, "5K SPRINT"), (10000, "10K POWER"), (21097, t("HALBMARATHON", "HALF MARATHON")), (42195, t("MARATHON", "FULL MARATHON"))]:
+            v_eff = metrics_t1["lt2"] * f_cs / 3.6
+            t_s = (dist-f_d)/v_eff if dist<=10000 else dist/(v_eff*(1-(f_dr*(dist/v_eff/3600/2))))
+            st.markdown(f'<div class="set-card blue-neon" style="min-height: auto;"><span class="card-title" style="margin-bottom: 12px;">{name}</span><div style="display: flex; align-items: baseline;"><span class="card-val-big" style="color:#00F2FF;">{fmt_time(t_s)}</span><span class="uni-pace" style="padding-left: 15px;">{fmt_pace((dist/t_s)*3.6)} /KM</span></div></div>', unsafe_allow_html=True)
 
-            st.markdown(f"""
-                <div style="border-left: 5px solid {color}; background: rgba(28, 28, 30, 0.5); padding: 15px; margin-bottom: 12px; border-radius: 0 10px 10px 0;">
-                    <div style="display: flex; justify-content: space-between; align-items: baseline;">
-                        <span style="color: {color}; font-weight: bold; font-family: 'Orbitron'; letter-spacing: 1px; font-size: 16px;">{name}</span>
-                        <span style="color: white; font-family: 'Orbitron'; font-size: 14px;">{v_low:.1f} - {v_high:.1f} <span style="font-size: 10px; opacity: 0.6;">KM/H</span></span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px;">
-                        <span style="color: #8E8E93; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">{desc}</span>
-                        <span style="color: #00F2FF; font-family: 'Orbitron'; font-weight: bold; font-size: 15px;">{p_high} - {p_low} <span style="font-size: 10px; opacity: 0.8;">min/km</span></span>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
-    with tabs[1]: # ZONEN
-        st.markdown(f"### // {t('TRAININGSZONEN', 'TRAINING ZONES')}")
-        
-        # Deine exakten Bezeichnungen aus der Gold-Version
-        zones = [
-            ("Z1 // RECOVERY", 0.60, 0.75, "#00F2FF", t("Recovery", "Recovery")),
-            ("Z2 // LONG RUN", 0.75, 0.85, "#34C759", t("Long Run", "Long Run")),
-            ("Z3 // TEMPO", 0.85, 0.92, "#FFCC00", t("Tempo", "Tempo")),
-            ("Z4 // SCHWELLE", 0.92, 1.00, "#FF9500", t("Schwelle", "Threshold")),
-            ("Z5 // HIT", 1.00, 1.10, "#FF3131", t("HIT", "HIT"))
-        ]
-
-        for name, low_mult, high_mult, color, desc in zones:
-            v_low = metrics_t1['lt2'] * low_mult
-            v_high = metrics_t1['lt2'] * high_mult
-            
-            # Pace-Berechnung für die Anzeige
-            p_low = fmt_pace(v_low)
-            p_high = fmt_pace(v_high)
-
-            st.markdown(f"""
-                <div style="border-left: 5px solid {color}; background: rgba(28, 28, 30, 0.5); padding: 15px; margin-bottom: 10px; border-radius: 0 10px 10px 0;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: {color}; font-weight: bold; font-family: 'Orbitron'; letter-spacing: 1px;">{name}</span>
-                        <span style="color: white; font-family: 'Orbitron';">{v_low:.1f} - {v_high:.1f} KM/H</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
-                        <span style="color: #8E8E93; font-size: 12px;">{desc}</span>
-                        <span style="color: #00F2FF; font-weight: bold;">{p_low} - {p_high} MIN/KM</span>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
     with tabs[3]: # SET CARD
         st.markdown(f"### // {t('VECTR-X // SET CARD', 'VECTR-X // SET CARD')}")
         bench_vo2 = get_benchmark_html(metrics_t1['vo2max'], "vo2max", "#FF3131")
