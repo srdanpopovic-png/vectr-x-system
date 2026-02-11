@@ -371,13 +371,38 @@ if metrics_t1:
                     </div>
                 </div>
             """, unsafe_allow_html=True)
-    with tabs[2]: # PROGNOSE
-        f_d, f_cs, f_dr = (500, 1.02, 0.02) if level_select=="Elite" else (350, 1.0, 0.04) if level_select=="Ambitioniert" else (150, 0.96, 0.08)
-        for dist, name in [(5000, "5K SPRINT"), (10000, "10K POWER"), (21097, t("HALBMARATHON", "HALF MARATHON")), (42195, t("MARATHON", "FULL MARATHON"))]:
-            v_eff = metrics_t1["lt2"] * f_cs / 3.6
-            t_s = (dist-f_d)/v_eff if dist<=10000 else dist/(v_eff*(1-(f_dr*(dist/v_eff/3600/2))))
-            st.markdown(f'<div class="set-card blue-neon" style="min-height: auto;"><span class="card-title" style="margin-bottom: 12px;">{name}</span><div style="display: flex; align-items: baseline;"><span class="card-val-big" style="color:#00F2FF;">{fmt_time(t_s)}</span><span class="uni-pace" style="padding-left: 15px;">{fmt_pace((dist/t_s)*3.6)} /KM</span></div></div>', unsafe_allow_html=True)
+    with tabs[1]: # ZONEN
+        st.markdown(f"### // {t('TRAININGSZONEN', 'TRAINING ZONES')}")
+        
+        # Deine exakten Bezeichnungen aus der Gold-Version
+        zones = [
+            ("Z1 // RECOVERY", 0.60, 0.75, "#00F2FF", t("Recovery", "Recovery")),
+            ("Z2 // LONG RUN", 0.75, 0.85, "#34C759", t("Long Run", "Long Run")),
+            ("Z3 // TEMPO", 0.85, 0.92, "#FFCC00", t("Tempo", "Tempo")),
+            ("Z4 // SCHWELLE", 0.92, 1.00, "#FF9500", t("Schwelle", "Threshold")),
+            ("Z5 // HIT", 1.00, 1.10, "#FF3131", t("HIT", "HIT"))
+        ]
 
+        for name, low_mult, high_mult, color, desc in zones:
+            v_low = metrics_t1['lt2'] * low_mult
+            v_high = metrics_t1['lt2'] * high_mult
+            
+            # Pace-Berechnung für die Anzeige
+            p_low = fmt_pace(v_low)
+            p_high = fmt_pace(v_high)
+
+            st.markdown(f"""
+                <div style="border-left: 5px solid {color}; background: rgba(28, 28, 30, 0.5); padding: 15px; margin-bottom: 10px; border-radius: 0 10px 10px 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: {color}; font-weight: bold; font-family: 'Orbitron'; letter-spacing: 1px;">{name}</span>
+                        <span style="color: white; font-family: 'Orbitron';">{v_low:.1f} - {v_high:.1f} KM/H</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
+                        <span style="color: #8E8E93; font-size: 12px;">{desc}</span>
+                        <span style="color: #00F2FF; font-weight: bold;">{p_low} - {p_high} MIN/KM</span>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
     with tabs[3]: # SET CARD
         st.markdown(f"### // {t('VECTR-X // SET CARD', 'VECTR-X // SET CARD')}")
         bench_vo2 = get_benchmark_html(metrics_t1['vo2max'], "vo2max", "#FF3131")
