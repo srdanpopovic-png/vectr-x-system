@@ -363,7 +363,7 @@ if metrics_t1:
     with tabs[3]: # SET CARD
         st.markdown(f"### // {t('VECTR-X // SET CARD', 'VECTR-X // SET CARD')}")
         bench_vo2 = get_benchmark_html(metrics_t1['vo2max'], "vo2max", "#FF3131")
-        st.markdown(f"""<div class="set-card-tall red-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("MOTOR-KAPAZITÄT // VO2MAX", "ENGINE CAPACITY // VO2MAX")}</span><div class="val-unit-row"><span class="card-val-big" style="font-size: 48px;">{int(metrics_t1['vo2max'])}</span><span class="card-unit-white">ML/MIN/KG</span></div></div>{bench_vo2}</div><p class="card-expl">{t('Dein aerober Staubsauger. Die absolute Basis für den Laktat-Abbau.', 'Your aerobic vacuum. The foundation for lactate clearance.')}</p></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="set-card-tall red-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("MOTOR-KAPAZITÄT // VO2MAX", "ENGINE CAPACITY // VO2MAX")}</span><div class="val-unit-row"><span class="card-val-big" style="font-size: 48px;">{int(metrics_t1['vo2max'])}</span><span class="card-unit-white">ML/MIN/KG</span></div></div>{bench_vo2}</div><p class="card-expl">{t('Aerobe Kapazität. Die Basis deiner Ausdauerleistung.', 'Aerobic capacity. The foundation of your endurance performance.')}</p></div>""", unsafe_allow_html=True)
         
         c1, c2 = st.columns(2)
         with c1:
