@@ -1,11 +1,6 @@
 import numpy as np
 
 def get_high_end_curve(x, y):
-    """ 
-    VECTR-X SPLINE ENGINE
-    Monotone Kubische Spline-Interpolation.
-    Verhindert das 'Oszillieren' der Kurve zwischen Messpunkten.
-    """
     x, y = np.array(x, dtype=float), np.array(y, dtype=float)
     n = len(x)
     dx, dy = np.diff(x), np.diff(y)
@@ -30,31 +25,38 @@ def get_high_end_curve(x, y):
         y_fine.append(val)
     return x_fine, np.array(y_fine)
 
-def calc_metrics(v, l, h, height=180, weight=75, sw=False):
-    """ VECTR-X CORE LOGIC V10 - FINAL PRO CALIBRATION """
+def calc_metrics(v, l, h, height=180, weight=75, sw=False, level="Ambitioniert"):
+    """ VECTR-X CORE LOGIC V12 - ELITE STABLE """
     if not v or len(v) < 3: return None
     
     v_fine, l_fine = get_high_end_curve(v, l)
     h_fine = np.interp(v_fine, v, h)
     baseline = min(l_fine)
+    v_max = max(v)
     
     # --- STATION 1: FATMAX ---
     fatmax_v = v_fine[np.abs(l_fine - (baseline + 0.4)).argmin()]
     if fatmax_v < min(v): fatmax_v = min(v)
     
-    # --- STATION 2: SCHWELLE / iANS ---
-    grads = np.gradient(l_fine, v_fine)
-    try:
-        idx_curvature = np.where(grads > 0.60)[0]
-        if len(idx_curvature) > 0:
-            lt2_v = v_fine[idx_curvature[0]]
-        else:
+    # --- STATION 2: SCHWELLE / iANS (ELITE LOGIC) ---
+    if level == "Elite":
+        # Für Elite ignorieren wir Gradienten-Rauschen und suchen den Power-Punkt
+        lt2_v = v_fine[np.abs(l_fine - (baseline + 1.85)).argmin()]
+    else:
+        grads = np.gradient(l_fine, v_fine)
+        try:
+            idx_curvature = np.where(grads > 0.60)[0]
+            if len(idx_curvature) > 0:
+                lt2_v = v_fine[idx_curvature[0]]
+            else:
+                lt2_v = v_fine[np.abs(l_fine - (baseline + 1.5)).argmin()]
+        except:
             lt2_v = v_fine[np.abs(l_fine - (baseline + 1.5)).argmin()]
-        if lt2_v <= fatmax_v + 1.0:
-            lt2_v = v_fine[np.abs(l_fine - (baseline + 1.5)).argmin()]
-    except:
-        lt2_v = v_fine[np.abs(l_fine - (baseline + 1.5)).argmin()]
     
+    # Sicherstellen, dass LT2 > FatMax
+    if lt2_v <= fatmax_v + 0.5:
+        lt2_v = v_fine[np.abs(l_fine - (baseline + 1.5)).argmin()]
+
     # --- STATION 3: SPEED-TAX ---
     l_at_lt2 = np.interp(lt2_v, v_fine, l_fine)
     l_at_fmax = np.interp(fatmax_v, v_fine, l_fine)
@@ -71,17 +73,17 @@ def calc_metrics(v, l, h, height=180, weight=75, sw=False):
         slope_red = 3.0
     resilience_score = 100 / (1 + (slope_red * 1.5))
     
-    # --- STATION 5: VO2MAX (GEWICHTS-KORREKTUR) ---
-    v_max = max(v)
-    # Korrekturfaktor: Wer leichter als 70kg ist, bekommt einen Effizienz-Bonus
-    weight_corr = 1.0 + ((70 - weight) * 0.006) 
+    # --- STATION 5: VO2MAX ---
+    weight_corr = 1.0 + ((70 - weight) * 0.007) 
     rel_vo2max = ((3.125 * v_max) + 3.5) * weight_corr
     
-    # --- STATION 6: RACE PROJECTION (RIEGEL) ---
-    k_factor = 1.13 - (resilience_score / 800)
-    t_ref_15k = (15.0 / lt2_v) # Zeitbasis für Riegel
+    # --- STATION 6: RACE PROJECTION (ELITE HYBRID) ---
+    # k-Faktor Korrektur
+    k_factor = 1.055 if level == "Elite" else (1.13 - (resilience_score / 800))
+    
+    t_ref_15k = (15.0 / lt2_v) 
     hm_time = t_ref_15k * (21.0975 / 15.0)**k_factor
-    m_time = t_ref_15k * (42.195 / 15.0)**k_factor
+    m_time = hm_time * 2.11 # Elite Faktor
 
     # --- RETURN DICT ---
     return {
