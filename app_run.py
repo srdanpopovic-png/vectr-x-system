@@ -131,12 +131,47 @@ st.markdown(f"""
     """, unsafe_allow_html=True)
 
 # --- DATEN-EXTRAKTION ---
-w_def = float(params.get("w", 75.0))
-h_def = float(params.get("h", 180.0))
-s_def = float(params.get("s", 42.0))
-v_def = [float(x) for x in params.get("v", "10,12,14,16,18").split(",")]
-l_def = [float(x) for x in params.get("l", "1.2,1.8,3.5,6.5,7.8").split(",")]
-hr_def = [float(x) for x in params.get("hr", "135,148,162,178,184").split(",")]
+# Wir stellen sicher, dass alle Werte sicher aus der URL oder den Defaults kommen
+
+# Hilfsfunktion für Einzelwerte
+def get_val(key, default):
+    val = params.get(key, default)
+    return val[0] if isinstance(val, list) else val
+
+# Biometrie-Defaults
+w_def = float(get_val("w", 75.0))
+h_def = float(get_val("h", 180.0))
+s_def = float(get_val("s", 42.0))
+
+# --- INITIALISIERUNG (Verhindert NameErrors) ---
+# Diese Variablen müssen existieren, auch wenn die Sidebar nicht geladen wird.
+weight, height, sw = w_def, h_def, s_def
+
+# Level-Initialisierung (Fix für Zeile 384)
+level_def = get_val("lvl", "Ambitioniert")
+level_select = level_def
+
+# All-Out & vMax Initialisierung
+ao_raw = get_val("ao", "true")
+is_all_out = True if str(ao_raw).lower() == "true" else False
+
+# Geschwindigkeiten (v)
+v_raw = params.get("v", "10,12,14,16,18")
+if isinstance(v_raw, list): v_raw = v_raw[0]
+v_def = [float(x) for x in str(v_raw).split(",")]
+
+# Laktat (l)
+l_raw = params.get("l", "1.2,1.8,3.5,6.5,7.8")
+if isinstance(l_raw, list): l_raw = l_raw[0]
+l_def = [float(x) for x in str(l_raw).split(",")]
+
+# Herzfrequenz (hr)
+hr_raw = params.get("hr", "135,148,162,178,184")
+if isinstance(hr_raw, list): hr_raw = hr_raw[0]
+hr_def = [float(x) for x in str(hr_raw).split(",")]
+
+# V-Max Initialisierung (Nimmt den letzten Speed-Wert als Basis)
+v_max = v_def[-1]
 
 # --- SIDEBAR LOGIK ---
 if not is_athlete and not is_view_mode:
@@ -162,19 +197,17 @@ if not is_athlete and not is_view_mode:
         st.session_state.lang = st.radio("LANGUAGE", ["GER", "ENG"], horizontal=True)
         st.write("---")
         
-        # --- BIOMETRIE & SETUP ---
-        st.subheader(t("// BIOMETRIE //", "// BIOMETRICS //"))
-        weight = st.number_input(t("Gewicht (kg)", "Weight"), value=w_def, step=0.1, format="%.1f")
-        height = st.number_input(t("Größe (cm)", "Height"), value=h_def, step=0.1, format="%.1f")
-        sw = st.number_input(t("Schulterbreite (cm)", "Shoulder"), value=s_def, step=0.1, format="%.1f")
-        
-        st.write("---")
-        level_select = st.selectbox(t("LEVEL", "SKILL_LEVEL"), ["Amateur", "Ambitioniert", "Elite"])
-        
         # --- NEU: PERFORMANCE SETUP (VLaMax & Flush Rate Steuerung) ---
         st.subheader(t("// PERFORMANCE SETUP //", "// PERFORMANCE SETUP //"))
-        # Standardwert ist die letzte Speed-Stufe aus deinen Default-Daten
-        v_max = st.number_input(t("Max. Speed (vMax km/h)", "Max Speed (vMax km/h)"), value=v_def[-1], step=0.1)
+        
+        # FIX 1: Hier die Sperre für vMax auf 30.0 km/h anheben
+        v_max = st.number_input(
+            t("Max. Speed (vMax km/h)", "Max Speed (vMax km/h)"), 
+            value=float(v_def[-1]), 
+            min_value=1.0, 
+            max_value=30.0, 
+            step=0.1
+        )
         is_all_out = st.toggle(t("Test bis zur Ausbelastung (All-Out)?", "All-Out Test?"), value=True)
         
         compare_mode = st.checkbox(t("> REF_SYNC AKTIVIEREN", "> ACTIVATE_REF_SYNC"), value=False)
@@ -182,9 +215,38 @@ if not is_athlete and not is_view_mode:
         def input_block(label, key_p, def_v, def_l, def_h):
             st.markdown(f"**// {label}**")
             c1, c2, c3 = st.columns(3)
-            v = [c1.number_input(f"SPD_{i+1}", key=f"{key_p}v{i}", value=def_v[i], step=0.1, format="%.1f") for i in range(len(def_v))]
-            l = [c2.number_input(f"LAC_{i+1}", key=f"{key_p}l{i}", value=def_l[i], step=0.1, format="%.1f") for i in range(len(def_l))]
-            h = [c3.number_input(f"HF_{i+1}", key=f"{key_p}h{i}", value=int(def_h[i]), step=1, format="%d") for i in range(len(def_h))]
+            
+            # FIX 2: min/max_value bei den Einzelstufen hinzufügen
+            v = [c1.number_input(
+                f"SPD_{i+1}", 
+                key=f"{key_p}v{i}", 
+                value=float(def_v[i]), 
+                min_value=1.0, 
+                max_value=25.0, # Erlaubt jetzt hohe Startgeschwindigkeiten
+                step=0.1, 
+                format="%.1f"
+            ) for i in range(len(def_v))]
+            
+            l = [c2.number_input(
+                f"LAC_{i+1}", 
+                key=f"{key_p}l{i}", 
+                value=float(def_l[i]), 
+                min_value=0.1, 
+                max_value=25.0, 
+                step=0.1, 
+                format="%.1f"
+            ) for i in range(len(def_l))]
+            
+            h = [c3.number_input(
+                f"HF_{i+1}", 
+                key=f"{key_p}h{i}", 
+                value=int(def_h[i]), 
+                min_value=30, 
+                max_value=230, 
+                step=1, 
+                format="%d"
+            ) for i in range(len(def_h))]
+            
             return v, l, h
 
         v1, l1, h1 = input_block(t("LIVE_SITZUNG", "LIVE_SESSION"), "t1", v_def, l_def, hr_def)
@@ -219,59 +281,30 @@ if not is_athlete and not is_view_mode:
 
 else:
     # --- ATHLETEN ANSICHT (EMPFÄNGER-LOGIK) ---
-    f_name = params.get("fn", [""])[0]
-    l_name = params.get("ln", [""])[0]
-    # Wichtig: Diese Variablen müssen exakt so heißen wie im Header-HTML weiter unten
-    bday = params.get("bd", ["-"])[0]
-    sport = params.get("sp", ["Running"])[0]
-    gender = params.get("g", ["-"])[0]
+    # Hier liest das Handy die Namen und Daten aus der URL
+    f_name = params.get("fn", "")
+    l_name = params.get("ln", "")
+    full_n = f"{f_name} {l_name}".strip()
+    bday = params.get("bd", "")
+    sport = params.get("sp", "")
+    gender = params.get("g", "")
     
-    # Biometrie & Daten
+    # Die biometrischen Daten aus der URL laden
     weight, height, sw = w_def, h_def, s_def
     v1, l1, h1 = v_def, l_def, hr_def
     
-    # vMax und All-Out extrahieren
-    try:
-        vm_def = float(params.get("vm", [v1[-1]])[0])
-    except:
-        vm_def = float(v1[-1])
-    ao_def = params.get("ao", ["true"])[0].lower() == "true"
-    
     level_select = "Ambitioniert"
-    
-    metrics_t1 = calculate_metrics(
-        np.array(v1), 
-        np.array(l1), 
-        np.array(h1), 
-        vm_def, 
-        is_all_out=ao_def
-    )
+    metrics_t1 = calc_metrics(v1, l1, h1, height, weight, level=level_select)
     metrics_t2 = None
 
 # --- APP RENDERER ---
 if metrics_t1:
-    # WEICHE: Checken, ob wir im Athleten-Modus (URL) oder Trainer-Modus (Sidebar) sind
-    if 'mode' in st.query_params:
-        # ATHLETEN MODUS: Daten aus der URL ziehen
-        h_fname = st.query_params.get("fn", "GUEST")
-        h_lname = st.query_params.get("ln", "")
-        h_full_n = f"{h_fname} {h_lname}".strip().upper()
-        h_sport = st.query_params.get("sp", "RUNNING").upper()
-        h_gender = st.query_params.get("g", "-").upper()
-        h_bday = st.query_params.get("bd", "-")
-    else:
-        # TRAINER MODUS: Daten aus der Sidebar nutzen
-        h_full_n = f"{f_name} {l_name}".strip().upper() if (f_name or l_name) else "GUEST"
-        h_sport = sport.upper()
-        h_gender = gender.upper()
-        h_bday = bday
-
-    # DER HEADER MIT DEN KORREKTEN VARIABLEN
+    full_n = f"{f_name} {l_name}".strip()
     st.markdown(f"""
         <div style='text-align: center; margin-bottom: 25px; padding: 15px; border-bottom: 1px solid #1C1C1E;'>
-            <h2 style='color: white; letter-spacing: 5px; margin-bottom: 0;'>// {h_full_n} //</h2>
+            <h2 style='color: white; letter-spacing: 5px; margin-bottom: 0;'>// {full_n.upper() if full_n else 'GUEST'} //</h2>
             <p style='color: #00F2FF; font-family: "Orbitron", sans-serif; font-size: 13px; letter-spacing: 2px; margin-top: 8px; opacity: 0.8;'>
-                {h_sport} | {h_gender} | {h_bday}
+                {sport.upper()} | {gender} | {bday}
             </p>
         </div>
     """, unsafe_allow_html=True)
@@ -282,6 +315,7 @@ if metrics_t1:
         t("[ PROGNOSE ]", "[ FORECAST ]"), 
         t("[ SET CARD ]", "[ SET CARD ]")
     ])
+
     with tabs[0]: # ANALYSE
         st.markdown(f"### // {t('DEINE ANALYSE', 'YOUR ANALYSIS')}")
         cols = st.columns(4)
@@ -343,44 +377,15 @@ if metrics_t1:
         st.markdown(f"### // {t('ZONEN', 'ZONES')}")
         l1, l2, fmax = metrics_t1["lt1"], metrics_t1["lt2"], metrics_t1["fatmax"]
         hf1, hf2, hf_f = metrics_t1["hf_lt1"], metrics_t1["hf_lt2"], metrics_t1["hf_fatmax"]
-        
         z_data = [
-            ("blue-neon", t("RECOVERY", "RECOVERY"), 0.1, fmax*0.9, f"< {fmax*0.9:.1f}", "KM/H", f"< {hf_f-10}"),
-            ("green-neon", t("LONG RUN", "LONG RUN"), fmax*0.9, l1, f"{fmax*0.9:.1f}-{l1:.1f}", "KM/H", f"{hf_f-10}-{hf1}"),
-            ("yellow-neon", t("TEMPO", "TEMPO"), l1, l2*0.95, f"{l1:.1f}-{l2*0.95:.1f}", "KM/H", f"{hf1}-{int(hf2*0.95)}"),
-            ("orange-neon", t("SCHWELLE", "THRESHOLD"), l2*0.95, l2*1.05, f"{l2*0.95:.1f}-{l2*1.05:.1f}", "KM/H", f"{int(hf2*0.95)}-{int(hf2*1.03)}"),
-            ("red-neon", t("HIT", "HIT"), l2*1.05, l2*1.25, f"> {l2*1.05:.1f}", "KM/H", f"> {int(hf2*1.03)}")
+            ("blue-neon", t("RECOVERY", "RECOVERY"), f"< {fmax*0.9:.1f}", "KM/H", f"< {hf_f-10}"),
+            ("green-neon", t("LONG RUN", "LONG RUN"), f"{fmax*0.9:.1f}-{l1:.1f}", "KM/H", f"{hf_f-10}-{hf1}"),
+            ("yellow-neon", t("TEMPO", "TEMPO"), f"{l1:.1f}-{l2*0.95:.1f}", "KM/H", f"{hf1}-{int(hf2*0.95)}"),
+            ("orange-neon", t("SCHWELLE", "THRESHOLD"), f"{l2*0.95:.1f}-{l2*1.05:.1f}", "KM/H", f"{int(hf2*0.95)}-{int(hf2*1.03)}"),
+            ("red-neon", t("HIT", "HIT"), f"> {l2*1.05:.1f}", "KM/H", f"> {int(hf2*1.03)}")
         ]
-        
-        for cls, n, v_min, v_max_z, sp_txt, unit, hf_r in z_data:
-            # PACE LOGIK: Schnellerer Wert (v_max_z) nach vorne
-            if n == t("RECOVERY", "RECOVERY"):
-                p_disp = f"> {fmt_pace(v_max_z)}"
-            elif n == t("HIT", "HIT"):
-                p_disp = f"< {fmt_pace(v_min)}"
-            else:
-                # Hier getauscht: Schnelle Pace (von v_max_z) bis langsame Pace (von v_min)
-                p_disp = f"{fmt_pace(v_max_z)}-{fmt_pace(v_min)}"
-
-            st.markdown(f"""
-                <div class="set-card {cls}" style="padding: 12px; min-height: 70px; margin-bottom: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                        <div style="flex: 1;">
-                            <span class="card-title" style="font-size: 11px; margin-bottom: 4px;">{n}</span>
-                            <div style="display: flex; align-items: baseline; gap: 8px;">
-                                <span style="font-size: 24px; font-weight: 700; color: white; font-family: monospace;">{sp_txt}</span>
-                                <span style="font-size: 12px; color: #8E8E93; font-weight: 600;">{unit}</span>
-                                <span style="font-size: 16px; font-weight: 700; color: #00F2FF; font-family: monospace; border-left: 1px solid #333; padding-left: 8px;">{p_disp} /KM</span>
-                            </div>
-                        </div>
-                        <div style="text-align: right; min-width: 80px;">
-                            <span style="font-size: 9px; font-weight: 800; color: #FF3131; text-transform: uppercase;">Ziel HF</span>
-                            <span style="font-size: 20px; font-weight: 700; color: #FF3131; font-family: monospace; display: block; line-height: 1;">{hf_r}</span>
-                            <span style="font-size: 9px; font-weight: 700; color: #FF3131; opacity: 0.8;">BPM</span>
-                        </div>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
+        for cls, n, sp, unit, hf_r in z_data:
+            st.markdown(f"""<div class="set-card {cls}" style="padding: 12px; min-height: 70px; margin-bottom: 10px;"><div style="display: flex; justify-content: space-between; align-items: flex-start;"><div style="flex: 1;"><span class="card-title" style="font-size: 11px; margin-bottom: 4px;">{n}</span><div style="display: flex; align-items: baseline; gap: 4px;"><span style="font-size: 24px; font-weight: 700; color: white; font-family: monospace;">{sp}</span><span style="font-size: 12px; color: #8E8E93; font-weight: 600;">{unit}</span></div></div><div style="text-align: right; min-width: 80px;"><span style="font-size: 9px; font-weight: 800; color: #FF3131; text-transform: uppercase;">Ziel HF</span><span style="font-size: 20px; font-weight: 700; color: #FF3131; font-family: monospace; display: block; line-height: 1;">{hf_r}</span><span style="font-size: 9px; font-weight: 700; color: #FF3131; opacity: 0.8;">BPM</span></div></div></div>""", unsafe_allow_html=True)
 
     with tabs[2]: # PROGNOSE
         st.markdown(f"### // {t('PROGNOSE', 'PREDICTION')}")
@@ -388,19 +393,12 @@ if metrics_t1:
         for dist, name in [(5000, "5K SPRINT"), (10000, "10K POWER"), (21097, t("HALBMARATHON", "HALF MARATHON")), (42195, t("MARATHON", "FULL MARATHON"))]:
             v_eff = metrics_t1["lt2"] * f_cs / 3.6
             t_s = (dist-f_d)/v_eff if dist<=10000 else dist/(v_eff*(1-(f_dr*(dist/v_eff/3600/2))))
-            st.markdown(f"""
-                <div class="set-card blue-neon" style="min-height: auto; margin-bottom: 10px;">
-                    <span class="card-title" style="margin-bottom: 12px;">{name}</span>
-                    <div style="display: flex; align-items: baseline;">
-                        <span class="card-val-big" style="color:#00F2FF;">{fmt_time(t_s)}</span>
-                        <span class="uni-pace" style="padding-left: 15px;">{fmt_pace((dist/t_s)*3.6)} /KM</span>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f'<div class="set-card blue-neon" style="min-height: auto;"><span class="card-title" style="margin-bottom: 12px;">{name}</span><div style="display: flex; align-items: baseline;"><span class="card-val-big" style="color:#00F2FF;">{fmt_time(t_s)}</span><span class="uni-pace" style="padding-left: 15px;">{fmt_pace((dist/t_s)*3.6)} /KM</span></div></div>', unsafe_allow_html=True)
+
     with tabs[3]: # SET CARD
         st.markdown(f"### // {t('VECTR-X // SET CARD', 'VECTR-X // SET CARD')}")
         bench_vo2 = get_benchmark_html(metrics_t1['vo2max'], "vo2max", "#FF3131")
-        st.markdown(f"""<div class="set-card-tall red-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("MOTOR-KAPAZITÄT // VO2MAX", "ENGINE CAPACITY // VO2MAX")}</span><div class="val-unit-row"><span class="card-val-big" style="font-size: 48px;">{int(metrics_t1['vo2max'])}</span><span class="card-unit-white">ML/MIN/KG</span></div></div>{bench_vo2}</div><p class="card-expl">{t('Aerobe Kapazität. Die Basis deiner Ausdauerleistung.', 'Aerobic capacity. The foundation of your endurance performance.')}</p></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="set-card-tall red-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("MOTOR-KAPAZITÄT // VO2MAX", "ENGINE CAPACITY // VO2MAX")}</span><div class="val-unit-row"><span class="card-val-big" style="font-size: 48px;">{int(metrics_t1['vo2max'])}</span><span class="card-unit-white">ML/MIN/KG</span></div></div>{bench_vo2}</div><p class="card-expl">{t('Dein aerober Staubsauger. Die absolute Basis für den Laktat-Abbau.', 'Your aerobic vacuum. The foundation for lactate clearance.')}</p></div>""", unsafe_allow_html=True)
         
         c1, c2 = st.columns(2)
         with c1:
@@ -408,7 +406,7 @@ if metrics_t1:
             st.markdown(f"""<div class="set-card-tall green-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("BASE // FATMAX", "BASE // FATMAX")}</span><div class="val-unit-row"><span class="card-val-big">{metrics_t1['fatmax']:.1f}</span><span class="card-unit-white">KM/H</span></div><span class="uni-pace" style="margin-top:2px;">{fmt_pace(metrics_t1['fatmax'])} /KM</span></div>{bench_fat}</div><p class="card-expl">{t('Maximaler Fettstoffwechsel. Dein Treibstoff für die Langstrecke.', 'Max fat oxidation. Your fuel for the long haul.')}</p></div>""", unsafe_allow_html=True)
         with c2:
             bench_lt2 = get_benchmark_html(metrics_t1['lt2'], "lt2", "#FF9500")
-            st.markdown(f"""<div class="set-card-tall orange-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("SCHWELLE // iANS", "THRESHOLD // iANS")}</span><div class="val-unit-row"><span class="card-val-big">{metrics_t1['lt2']:.2f}</span><span class="card-unit-white">KM/H</span></div><span class="uni-pace" style="margin-top:2px;">{fmt_pace(metrics_t1['lt2'])} /KM</span></div>{bench_lt2}</div><p class="card-expl">{t('Deine rote Linie. Maximales Tempo, welches du für 45-60min halten kannst.', 'Your red line. Max sustainable pace for 45-60min.')}</p></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class="set-card-tall orange-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("SCHWELLE // iANS", "THRESHOLD // iANS")}</span><div class="val-unit-row"><span class="card-val-big">{metrics_t1['lt2']:.2f}</span><span class="card-unit-white">KM/H</span></div><span class="uni-pace" style="margin-top:2px;">{fmt_pace(metrics_t1['lt2'])} /KM</span></div>{bench_lt2}</div><p class="card-expl">{t('Deine rote Linie. Das maximale Tempo ohne System-Flutung.', 'Your red line. Max sustainable pace.')}</p></div>""", unsafe_allow_html=True)
         
         c3, c4 = st.columns(2)
         with c3:
