@@ -339,42 +339,38 @@ if metrics_t1:
         res_class = "res-ultra" if metrics_t1['vlamax_val'] < 0.45 else "res-stable" if metrics_t1['vlamax_val'] < 0.75 else "res-critical"
         st.markdown(f'<div class="stability-box {res_class}">// {t("METABOLIC PROFILE", "METABOLIC PROFILE")} // <br><span style="font-size:18px; font-weight:700;">{m_type}</span><br><span style="font-size:12px; opacity:0.8;">FLUSH RATE™: {int(metrics_t1["stab"])}%</span></div>', unsafe_allow_html=True)
 
-    with tabs[1]: # ZONEN
+with tabs[1]: # ZONEN
         st.markdown(f"### // {t('ZONEN', 'ZONES')}")
         l1, l2, fmax = metrics_t1["lt1"], metrics_t1["lt2"], metrics_t1["fatmax"]
         hf1, hf2, hf_f = metrics_t1["hf_lt1"], metrics_t1["hf_lt2"], metrics_t1["hf_fatmax"]
         
-        # Definition der Zonen-Daten
-        z_configs = [
-            ("blue-neon", t("RECOVERY", "RECOVERY"), 0, fmax*0.9, "KM/H", f"< {hf_f-10}"),
-            ("green-neon", t("LONG RUN", "LONG RUN"), fmax*0.9, l1, "KM/H", f"{hf_f-10}-{hf1}"),
-            ("yellow-neon", t("TEMPO", "TEMPO"), l1, l2*0.95, "KM/H", f"{hf1}-{int(hf2*0.95)}"),
-            ("orange-neon", t("SCHWELLE", "THRESHOLD"), l2*0.95, l2*1.05, "KM/H", f"{int(hf2*0.95)}-{int(hf2*1.03)}"),
-            ("red-neon", t("HIT", "HIT"), l2*1.05, l2*1.2, "KM/H", f"> {int(hf2*1.03)}")
+        # Zonen-Konfiguration mit min/max Werten für die Pace-Berechnung
+        z_data = [
+            ("blue-neon", t("RECOVERY", "RECOVERY"), 0.1, fmax*0.9, f"< {fmax*0.9:.1f}", "KM/H", f"< {hf_f-10}"),
+            ("green-neon", t("LONG RUN", "LONG RUN"), fmax*0.9, l1, f"{fmax*0.9:.1f}-{l1:.1f}", "KM/H", f"{hf_f-10}-{hf1}"),
+            ("yellow-neon", t("TEMPO", "TEMPO"), l1, l2*0.95, f"{l1:.1f}-{l2*0.95:.1f}", "KM/H", f"{hf1}-{int(hf2*0.95)}"),
+            ("orange-neon", t("SCHWELLE", "THRESHOLD"), l2*0.95, l2*1.05, f"{l2*0.95:.1f}-{l2*1.05:.1f}", "KM/H", f"{int(hf2*0.95)}-{int(hf2*1.03)}"),
+            ("red-neon", t("HIT", "HIT"), l2*1.05, l2*1.25, f"> {l2*1.05:.1f}", "KM/H", f"> {int(hf2*1.03)}")
         ]
-
-        for cls, n, v_low, v_high, unit, hf_r in z_configs:
-            # Pace berechnen (analog zur Prognose)
-            if v_low == 0:
-                p_str = f"> {fmt_pace(v_high)}"
-                v_str = f"< {v_high:.1f}"
-            elif n == "HIT":
-                p_str = f"< {fmt_pace(v_low)}"
-                v_str = f"> {v_low:.1f}"
+        
+        for cls, n, v_min, v_max_z, sp_txt, unit, hf_r in z_data:
+            # Pace exakt wie in Prognose berechnen
+            if n == t("RECOVERY", "RECOVERY"):
+                p_disp = f"> {fmt_pace(v_max_z)}"
+            elif n == t("HIT", "HIT"):
+                p_disp = f"< {fmt_pace(v_min)}"
             else:
-                # Pace-Range von langsam zu schnell (daher high zu low)
-                p_str = f"{fmt_pace(v_low)}-{fmt_pace(v_high)}"
-                v_str = f"{v_low:.1f}-{v_high:.1f}"
+                p_disp = f"{fmt_pace(v_min)}-{fmt_pace(v_max_z)}"
 
             st.markdown(f"""
                 <div class="set-card {cls}" style="padding: 12px; min-height: 70px; margin-bottom: 10px;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <div style="flex: 1;">
                             <span class="card-title" style="font-size: 11px; margin-bottom: 4px;">{n}</span>
-                            <div style="display: flex; align-items: baseline; gap: 4px;">
-                                <span style="font-size: 24px; font-weight: 700; color: white; font-family: monospace;">{v_str}</span>
-                                <span style="font-size: 12px; color: #8E8E93; font-weight: 600; padding-right: 8px;">{unit}</span>
-                                <span class="uni-pace" style="color:#00F2FF; font-size: 14px; font-weight: 700; border-left: 1px solid #333; padding-left: 8px;">{p_str} /KM</span>
+                            <div style="display: flex; align-items: baseline; gap: 8px;">
+                                <span style="font-size: 24px; font-weight: 700; color: white; font-family: monospace;">{sp_txt}</span>
+                                <span style="font-size: 12px; color: #8E8E93; font-weight: 600;">{unit}</span>
+                                <span style="font-size: 16px; font-weight: 700; color: #00F2FF; font-family: monospace; border-left: 1px solid #333; padding-left: 8px;">{p_disp} /KM</span>
                             </div>
                         </div>
                         <div style="text-align: right; min-width: 80px;">
@@ -382,6 +378,22 @@ if metrics_t1:
                             <span style="font-size: 20px; font-weight: 700; color: #FF3131; font-family: monospace; display: block; line-height: 1;">{hf_r}</span>
                             <span style="font-size: 9px; font-weight: 700; color: #FF3131; opacity: 0.8;">BPM</span>
                         </div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+
+    with tabs[2]: # PROGNOSE
+        st.markdown(f"### // {t('PROGNOSE', 'PREDICTION')}")
+        f_d, f_cs, f_dr = (500, 1.02, 0.02) if level_select=="Elite" else (350, 1.0, 0.04) if level_select=="Ambitioniert" else (150, 0.96, 0.08)
+        for dist, name in [(5000, "5K SPRINT"), (10000, "10K POWER"), (21097, t("HALBMARATHON", "HALF MARATHON")), (42195, t("MARATHON", "FULL MARATHON"))]:
+            v_eff = metrics_t1["lt2"] * f_cs / 3.6
+            t_s = (dist-f_d)/v_eff if dist<=10000 else dist/(v_eff*(1-(f_dr*(dist/v_eff/3600/2))))
+            st.markdown(f"""
+                <div class="set-card blue-neon" style="min-height: auto; margin-bottom: 10px;">
+                    <span class="card-title" style="margin-bottom: 12px;">{name}</span>
+                    <div style="display: flex; align-items: baseline;">
+                        <span class="card-val-big" style="color:#00F2FF;">{fmt_time(t_s)}</span>
+                        <span class="uni-pace" style="padding-left: 15px;">{fmt_pace((dist/t_s)*3.6)} /KM</span>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
