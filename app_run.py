@@ -289,14 +289,21 @@ else:
     sport = params.get("sp", "")
     gender = params.get("g", "")
     
-    # Die biometrischen Daten aus der URL laden
+    # Die biometrischen Daten und Session-Daten nutzen (wurden oben initialisiert)
     weight, height, sw = w_def, h_def, s_def
     v1, l1, h1 = v_def, l_def, hr_def
     
-    level_select = "Ambitioniert"
-    metrics_t1 = calc_metrics(v1, l1, h1, height, weight, level=level_select)
+    # Sicherstellen, dass die Engine die richtigen Parameter bekommt:
+    # 1. Wir nutzen den Namen aus dem Import: calculate_metrics
+    # 2. Wir übergeben v_max und is_all_out statt height/weight
+    metrics_t1 = calculate_metrics(
+        v1, 
+        l1, 
+        h1, 
+        v_max=v_max, 
+        is_all_out=is_all_out
+    )
     metrics_t2 = None
-
 # --- APP RENDERER ---
 if metrics_t1:
     full_n = f"{f_name} {l_name}".strip()
