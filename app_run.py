@@ -250,12 +250,28 @@ else:
 
 # --- APP RENDERER ---
 if metrics_t1:
-    full_n = f"{f_name} {l_name}".strip()
+    # WEICHE: Checken, ob wir im Athleten-Modus (URL) oder Trainer-Modus (Sidebar) sind
+    if 'mode' in st.query_params:
+        # ATHLETEN MODUS: Daten aus der URL ziehen
+        h_fname = st.query_params.get("fn", "GUEST")
+        h_lname = st.query_params.get("ln", "")
+        h_full_n = f"{h_fname} {h_lname}".strip().upper()
+        h_sport = st.query_params.get("sp", "RUNNING").upper()
+        h_gender = st.query_params.get("g", "-").upper()
+        h_bday = st.query_params.get("bd", "-")
+    else:
+        # TRAINER MODUS: Daten aus der Sidebar nutzen
+        h_full_n = f"{f_name} {l_name}".strip().upper() if (f_name or l_name) else "GUEST"
+        h_sport = sport.upper()
+        h_gender = gender.upper()
+        h_bday = bday
+
+    # DER HEADER MIT DEN KORREKTEN VARIABLEN
     st.markdown(f"""
         <div style='text-align: center; margin-bottom: 25px; padding: 15px; border-bottom: 1px solid #1C1C1E;'>
-            <h2 style='color: white; letter-spacing: 5px; margin-bottom: 0;'>// {full_n.upper() if full_n else 'GUEST'} //</h2>
+            <h2 style='color: white; letter-spacing: 5px; margin-bottom: 0;'>// {h_full_n} //</h2>
             <p style='color: #00F2FF; font-family: "Orbitron", sans-serif; font-size: 13px; letter-spacing: 2px; margin-top: 8px; opacity: 0.8;'>
-                {sport.upper()} | {gender} | {bday}
+                {h_sport} | {h_gender} | {h_bday}
             </p>
         </div>
     """, unsafe_allow_html=True)
@@ -266,7 +282,6 @@ if metrics_t1:
         t("[ PROGNOSE ]", "[ FORECAST ]"), 
         t("[ SET CARD ]", "[ SET CARD ]")
     ])
-
     with tabs[0]: # ANALYSE
         st.markdown(f"### // {t('DEINE ANALYSE', 'YOUR ANALYSIS')}")
         cols = st.columns(4)
