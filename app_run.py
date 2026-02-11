@@ -339,7 +339,7 @@ if metrics_t1:
         res_class = "res-ultra" if metrics_t1['vlamax_val'] < 0.45 else "res-stable" if metrics_t1['vlamax_val'] < 0.75 else "res-critical"
         st.markdown(f'<div class="stability-box {res_class}">// {t("METABOLIC PROFILE", "METABOLIC PROFILE")} // <br><span style="font-size:18px; font-weight:700;">{m_type}</span><br><span style="font-size:12px; opacity:0.8;">FLUSH RATE™: {int(metrics_t1["stab"])}%</span></div>', unsafe_allow_html=True)
 
-with tabs[1]: # ZONEN
+    with tabs[1]: # ZONEN
         st.markdown(f"### // {t('ZONEN', 'ZONES')}")
         l1, l2, fmax = metrics_t1["lt1"], metrics_t1["lt2"], metrics_t1["fatmax"]
         hf1, hf2, hf_f = metrics_t1["hf_lt1"], metrics_t1["hf_lt2"], metrics_t1["hf_fatmax"]
