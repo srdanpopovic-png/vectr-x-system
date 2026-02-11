@@ -344,7 +344,6 @@ if metrics_t1:
         l1, l2, fmax = metrics_t1["lt1"], metrics_t1["lt2"], metrics_t1["fatmax"]
         hf1, hf2, hf_f = metrics_t1["hf_lt1"], metrics_t1["hf_lt2"], metrics_t1["hf_fatmax"]
         
-        # Zonen-Konfiguration mit min/max Werten für die Pace-Berechnung
         z_data = [
             ("blue-neon", t("RECOVERY", "RECOVERY"), 0.1, fmax*0.9, f"< {fmax*0.9:.1f}", "KM/H", f"< {hf_f-10}"),
             ("green-neon", t("LONG RUN", "LONG RUN"), fmax*0.9, l1, f"{fmax*0.9:.1f}-{l1:.1f}", "KM/H", f"{hf_f-10}-{hf1}"),
@@ -354,13 +353,14 @@ if metrics_t1:
         ]
         
         for cls, n, v_min, v_max_z, sp_txt, unit, hf_r in z_data:
-            # Pace exakt wie in Prognose berechnen
+            # PACE LOGIK: Schnellerer Wert (v_max_z) nach vorne
             if n == t("RECOVERY", "RECOVERY"):
                 p_disp = f"> {fmt_pace(v_max_z)}"
             elif n == t("HIT", "HIT"):
                 p_disp = f"< {fmt_pace(v_min)}"
             else:
-                p_disp = f"{fmt_pace(v_min)}-{fmt_pace(v_max_z)}"
+                # Hier getauscht: Schnelle Pace (von v_max_z) bis langsame Pace (von v_min)
+                p_disp = f"{fmt_pace(v_max_z)}-{fmt_pace(v_min)}"
 
             st.markdown(f"""
                 <div class="set-card {cls}" style="padding: 12px; min-height: 70px; margin-bottom: 10px;">
