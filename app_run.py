@@ -354,6 +354,7 @@ if metrics_t1:
             st.markdown(f"""<div class="set-card {cls}" style="padding: 12px; min-height: 70px; margin-bottom: 10px;"><div style="display: flex; justify-content: space-between; align-items: flex-start;"><div style="flex: 1;"><span class="card-title" style="font-size: 11px; margin-bottom: 4px;">{n}</span><div style="display: flex; align-items: baseline; gap: 4px;"><span style="font-size: 24px; font-weight: 700; color: white; font-family: monospace;">{sp}</span><span style="font-size: 12px; color: #8E8E93; font-weight: 600;">{unit}</span></div></div><div style="text-align: right; min-width: 80px;"><span style="font-size: 9px; font-weight: 800; color: #FF3131; text-transform: uppercase;">Ziel HF</span><span style="font-size: 20px; font-weight: 700; color: #FF3131; font-family: monospace; display: block; line-height: 1;">{hf_r}</span><span style="font-size: 9px; font-weight: 700; color: #FF3131; opacity: 0.8;">BPM</span></div></div></div>""", unsafe_allow_html=True)
 
     with tabs[2]: # PROGNOSE
+        st.markdown(f"### // {t('PROGNOSE', 'PREDICTION')}")
         f_d, f_cs, f_dr = (500, 1.02, 0.02) if level_select=="Elite" else (350, 1.0, 0.04) if level_select=="Ambitioniert" else (150, 0.96, 0.08)
         for dist, name in [(5000, "5K SPRINT"), (10000, "10K POWER"), (21097, t("HALBMARATHON", "HALF MARATHON")), (42195, t("MARATHON", "FULL MARATHON"))]:
             v_eff = metrics_t1["lt2"] * f_cs / 3.6
