@@ -1,3 +1,4 @@
+
 import streamlit as st
 from core_engine import calc_metrics
 import matplotlib.pyplot as plt
@@ -179,13 +180,13 @@ if not is_athlete and not is_view_mode:
             return v, l, h
 
         v1, l1, h1 = input_block(t("LIVE_SITZUNG", "LIVE_SESSION"), "t1", v_def, l_def, hr_def)
-        metrics_t1 = calc_metrics(v1, l1, h1, height, weight)
+        metrics_t1 = calc_metrics(v1, l1, h1, height, weight, level=level_select)
         
         metrics_t2 = None
         if compare_mode:
             # Standardwerte für Vergleich (etwas schlechter simuliert)
             v2, l2, h2 = input_block(t("ARCHIV_DATEN", "ARCHIVE_DATA"), "t2", v_def, [x+0.5 for x in l_def], [x+5 for x in hr_def])
-            metrics_t2 = calc_metrics(v2, l2, h2, height, weight, sw)
+            metrics_t2 = calc_metrics(v2, l2, h2, height, weight, level=level_select)
 
        # --- SHARE BUTTON LOGIK ---
         st.write("---")
@@ -221,7 +222,7 @@ else:
     v1, l1, h1 = v_def, l_def, hr_def
     
     level_select = "Ambitioniert"
-    metrics_t1 = calc_metrics(v1, l1, h1, height, weight, sw)
+    metrics_t1 = calc_metrics(v1, l1, h1, height, weight, level=level_select)
     metrics_t2 = None
 
 # --- APP RENDERER ---
@@ -362,3 +363,4 @@ if metrics_t1:
             st.markdown(f"""<div class="set-card-tall {res_neon}"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("METABOLISCHE RESILIENZ", "METABOLIC RESILIENCE")}</span><div class="val-unit-row"><span class="card-val-big">{int(metrics_t1['stab'])}</span><span class="card-unit-white">%</span></div></div>{bench_stab}</div><p class="card-expl">{t('Deine System-Härte. Wie stabil dein Motor läuft, nachdem die Schwelle überschritten hast.', 'System stability under high-speed load.')}</p></div>""", unsafe_allow_html=True)
 else:
     st.error("Warten auf Eingabedaten...")
+
