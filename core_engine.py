@@ -2,30 +2,42 @@ import numpy as np
 from scipy.interpolate import UnivariateSpline
 
 def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
+    # FIX: Umwandlung in NumPy-Arrays für mathematische Operationen
+    speeds = np.array(speeds)
+    lactates = np.array(lactates)
+    hr = np.array(hr)
+    
     # 1. Splines für Laktat & Herzfrequenz
+    # s=0.5 erlaubt eine leichte Glättung der Messfehler
     spline = UnivariateSpline(speeds, lactates, s=0.5)
     hr_spline = UnivariateSpline(speeds, hr, s=0.5)
     
     v_range = np.linspace(speeds[0], speeds[-1], 100)
     l_range = spline(v_range)
-    h_range = hr_spline(v_range) # Hochauflösende HF-Kurve
+    h_range = hr_spline(v_range) 
 
     # 2. Schwellenberechnung (IAS / LT2)
     baseline = lactates[0]
     ias_laktat = baseline + 1.5
-    v_ias = v_range[np.argmin(np.abs(l_range - ias_laktat))]
+    # .item() stellt sicher, dass wir einen float bekommen, kein 0-d Array
+    v_ias = v_range[np.argmin(np.abs(l_range - ias_laktat))].item()
 
     # 3. VO2max & VLaMax Logik
     vo2max_est = 3.5 * v_max
+    
+    # JETZT FUNKTIONIERT ES: Filterung auf Basis des NumPy-Arrays
     post_ias_v = speeds[speeds >= v_ias]
     post_ias_l = lactates[speeds >= v_ias]
     
     if len(post_ias_v) > 1:
         slope = (post_ias_l[-1] - post_ias_l[0]) / (post_ias_v[-1] - post_ias_v[0])
     else:
+        # Fallback, falls die Schwelle ganz am Ende der Kurve liegt
         slope = 0.5 
     
     vlamax_score = np.clip((slope * 5) / (v_max / 10), 0.2, 1.0)
+    
+    # ... Rest der Funktion wie gehabt ...
 
     # 4. FLUSH RATE™ & Typisierung
     flush_rate = 100 - (vlamax_score * 50)
