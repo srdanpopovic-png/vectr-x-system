@@ -1,6 +1,6 @@
 
 import streamlit as st
-from core_engine import calc_metrics
+from core_engine import calculate_metrics
 import matplotlib.pyplot as plt
 import numpy as np
 import urllib.parse
@@ -40,19 +40,20 @@ def fmt_time(seconds):
     h, m, s = int(seconds // 3600), int((seconds % 3600) // 60), int(seconds % 60)
     return f"{h:02d}:{m:02d}:{s:02d}" if h > 0 else f"{m:02d}:{s:02d}"
 
-def get_benchmark_html(val, metric_type, color_hex):
     # VECTR-X "HARD TRUTH" BENCHMARKS
+def get_benchmark_html(val, metric_type, color_hex):
     if metric_type == "vo2max": 
         levels = [("ELITE", 65, 999), ("ATHLETE", 55, 65), ("AMATEUR", 45, 55), ("ROOKIE", 0, 45)]
     elif metric_type == "lt2": 
         levels = [("ELITE", 17.5, 99), ("ATHLETE", 15.0, 17.5), ("AMATEUR", 12.0, 15.0), ("ROOKIE", 0, 12.0)]
     elif metric_type == "fatmax": 
         levels = [("ELITE", 15.0, 99), ("ATHLETE", 12.5, 15.0), ("AMATEUR", 10.0, 12.5), ("ROOKIE", 0, 10.0)]
-    elif metric_type == "re": 
-        levels = [("ELITE", 0, 0.30), ("ATHLETE", 0.30, 0.55), ("AMATEUR", 0.55, 0.85), ("ROOKIE", 0.85, 9.99)]
-    elif metric_type == "stab": 
-        levels = [("ELITE", 75, 100), ("ATHLETE", 60, 75), ("AMATEUR", 40, 60), ("ROOKIE", 0, 40)]
+    elif metric_type == "vlamax": # NEU: GLYCO POWER
+        levels = [("TURBO", 0.75, 1.2), ("HYBRID", 0.45, 0.75), ("DIESEL", 0, 0.45)]
+    elif metric_type == "stab": # NEU: FLUSH RATE
+        levels = [("MAX FLUSH", 85, 100), ("HIGH", 70, 85), ("MID", 50, 70), ("LOW", 0, 50)]
     else: levels = []
+    # ... restliche Funktion bleibt gleich ...
 
     html_out = "<div style='display:flex; flex-direction:column; align-items:flex-end; gap:2px; font-family:monospace;'>"
     for label, low, high in levels:
@@ -144,12 +145,11 @@ if not is_athlete and not is_view_mode:
         
         # Reihe 1: Name
         c_n1, c_n2 = st.columns(2)
-        f_name = c_n1.text_input("VORNAME", value=params.get("fn", ""))
-        l_name = c_n2.text_input("NACHNAME", value=params.get("ln", ""))
+        f_name = c_n1.text_input("VORNAME", value=params.get("fn", "Srdan"))
+        l_name = c_n2.text_input("NACHNAME", value=params.get("ln", "Popović"))
     
         # Reihe 2: Stammdaten
         c_s1, c_s2 = st.columns(2)
-        # Logik für das automatische Setzen des Geschlechts aus der URL
         g_idx = 0 if params.get("g") == "M" else 1 if params.get("g") == "W" else 2
         gender = c_s1.selectbox("GESCHLECHT", ["M", "W", "D"], index=g_idx)
         bday = c_s2.text_input("GEBURTSTAG", value=params.get("bd", "01.01.1990"), help="Format: DD.MM.YYYY")
@@ -161,14 +161,22 @@ if not is_athlete and not is_view_mode:
         st.write("---")
         st.session_state.lang = st.radio("LANGUAGE", ["GER", "ENG"], horizontal=True)
         st.write("---")
-        st.subheader(t("// BIOMETRIE //", "// BIOMETRICS //"))
         
+        # --- BIOMETRIE & SETUP ---
+        st.subheader(t("// BIOMETRIE //", "// BIOMETRICS //"))
         weight = st.number_input(t("Gewicht (kg)", "Weight"), value=w_def, step=0.1, format="%.1f")
         height = st.number_input(t("Größe (cm)", "Height"), value=h_def, step=0.1, format="%.1f")
         sw = st.number_input(t("Schulterbreite (cm)", "Shoulder"), value=s_def, step=0.1, format="%.1f")
         
         st.write("---")
         level_select = st.selectbox(t("LEVEL", "SKILL_LEVEL"), ["Amateur", "Ambitioniert", "Elite"])
+        
+        # --- NEU: PERFORMANCE SETUP (VLaMax & Flush Rate Steuerung) ---
+        st.subheader(t("// PERFORMANCE SETUP //", "// PERFORMANCE SETUP //"))
+        # Standardwert ist die letzte Speed-Stufe aus deinen Default-Daten
+        v_max = st.number_input(t("Max. Speed (vMax km/h)", "Max Speed (vMax km/h)"), value=v_def[-1], step=0.1)
+        is_all_out = st.toggle(t("Test bis zur Ausbelastung (All-Out)?", "All-Out Test?"), value=True)
+        
         compare_mode = st.checkbox(t("> REF_SYNC AKTIVIEREN", "> ACTIVATE_REF_SYNC"), value=False)
         
         def input_block(label, key_p, def_v, def_l, def_h):
@@ -180,13 +188,15 @@ if not is_athlete and not is_view_mode:
             return v, l, h
 
         v1, l1, h1 = input_block(t("LIVE_SITZUNG", "LIVE_SESSION"), "t1", v_def, l_def, hr_def)
-        metrics_t1 = calc_metrics(v1, l1, h1, height, weight, level=level_select)
+        
+        # --- WICHTIG: ÜBERGABE AN DIE NEUE ENGINE ---
+        # Wir übergeben jetzt v_max und is_all_out an die calculate_metrics Funktion
+        metrics_t1 = calculate_metrics(np.array(v1), np.array(l1), np.array(h1), v_max, is_all_out=is_all_out)
         
         metrics_t2 = None
         if compare_mode:
-            # Standardwerte für Vergleich (etwas schlechter simuliert)
             v2, l2, h2 = input_block(t("ARCHIV_DATEN", "ARCHIVE_DATA"), "t2", v_def, [x+0.5 for x in l_def], [x+5 for x in hr_def])
-            metrics_t2 = calc_metrics(v2, l2, h2, height, weight, level=level_select)
+            metrics_t2 = calculate_metrics(np.array(v2), np.array(l2), np.array(h2), v_max, is_all_out=is_all_out)
 
        # --- SHARE BUTTON LOGIK ---
         st.write("---")
@@ -236,19 +246,33 @@ if metrics_t1:
             </p>
         </div>
     """, unsafe_allow_html=True)
-    tabs = st.tabs([t("[ ANALYSE ]", "[ ANALYSIS ]"), t("[ ZONEN ]", "[ ZONES ]"), t("[ PROGNOSE ]", "[ FORECAST ]"), t("[ SET CARD ]", "[ SET CARD ]")])
+
+    tabs = st.tabs([
+        t("[ ANALYSE ]", "[ ANALYSIS ]"), 
+        t("[ ZONEN ]", "[ ZONES ]"), 
+        t("[ PROGNOSE ]", "[ FORECAST ]"), 
+        t("[ SET CARD ]", "[ SET CARD ]")
+    ])
 
     with tabs[0]: # ANALYSE
         st.markdown(f"### // {t('DEINE ANALYSE', 'YOUR ANALYSIS')}")
         cols = st.columns(4)
-        m_show = [(t("BASE // FATMAX", "BASE // FATMAX"), "fatmax", "KM/H", True), (t("SCHWELLE // iANS", "THRESHOLD // iANS"), "lt2", "KM/H", True), (t("SPEED-TAX", "SPEED-TAX"), "re", "MMOL/KMH", False), (t("VO2MAX (est.)", "VO2MAX (est.)"), "vo2max", "ML/MIN/KG", False)]
+        
+        m_show = [
+            (t("BASE // FATMAX", "BASE // FATMAX"), "fatmax", "KM/H", True), 
+            (t("SCHWELLE // iANS", "THRESHOLD // iANS"), "lt2", "KM/H", True), 
+            (t("GLYCO POWER // VLaMAX", "GLYCO POWER // VLaMAX"), "vlamax_val", "mmol/l/s", False), 
+            (t("VO2MAX (est.)", "VO2MAX (est.)"), "vo2max", "ML/MIN/KG", False)
+        ]
         
         for col, (lab, k, unit, show_hf) in zip(cols, m_show):
             val = metrics_t1[k]
             delta = (val - metrics_t2[k]) if metrics_t2 else None
             
-            if k == "re": glow_class = "glow-up" if delta and delta < 0 else "glow-down" if delta and delta > 0 else ""
-            else: glow_class = "glow-up" if delta and delta > 0 else "glow-down" if delta and delta < 0 else ""
+            if k == "vlamax_val" or k == "re":
+                glow_class = "glow-up" if delta and delta < 0 else "glow-down" if delta and delta > 0 else ""
+            else:
+                glow_class = "glow-up" if delta and delta > 0 else "glow-down" if delta and delta < 0 else ""
             
             v_disp = f"{int(val)}" if "ML" in unit else f"{val:.2f}"
             delta_html = f'<div class="delta-section {glow_class}">Δ {delta:+.2f}</div>' if delta is not None else ""
@@ -260,11 +284,8 @@ if metrics_t1:
                 st.markdown(f"""<div class="metric-wrapper"><span style='color:#8E8E93; font-size:13px; font-weight:600;'>{lab}</span><div class='{glow_class}' style='font-size:32px; font-weight:700;'>{v_disp} <span style='font-size:14px;'>{unit}</span></div>{pace_html}{hf_html}{delta_html}</div>""", unsafe_allow_html=True)
 
         st.divider()
-        # --- GRAFIK MIT LEGENDE & ACHSEN ---
         fig, ax = plt.subplots(figsize=(10, 4.2), facecolor='#0A0A0B')
         ax.set_facecolor('#0A0A0B')
-        
-        # Achsen Beschriftung
         ax.set_xlabel("SPEED (KM/H)", color='#E0E0E0', fontsize=9, fontweight='bold', labelpad=8)
         ax.set_ylabel("LACTATE (MMOL)", color='#FFCC00', fontsize=9, fontweight='bold', labelpad=8)
         ax.tick_params(axis='x', colors='#E0E0E0', labelsize=9)
@@ -275,32 +296,25 @@ if metrics_t1:
         ax.plot(metrics_t1["v_fine"], metrics_t1["l_fine"], '-', color='#FFCC00', lw=2.5, label=t('LIVE', 'LIVE'))
         ax.scatter(metrics_t1["v_orig"], metrics_t1["l_orig"], color='#FF00FF', s=40, edgecolors='white', zorder=6)
         
-        # HF Achse
         ax2 = ax.twinx()
         ax2.plot(metrics_t1["v_fine"], metrics_t1["h_fine"], ':', color='#FF3131', alpha=0.6, lw=1.5, label="HF")
         ax2.set_ylabel("HF (BPM)", color='#FF3131', fontsize=9, fontweight='bold', rotation=270, labelpad=15)
         ax2.tick_params(axis='y', colors='#FF3131', labelsize=9)
-        ax2.spines['top'].set_visible(False)
-        ax2.spines['bottom'].set_visible(False)
-        ax2.spines['left'].set_visible(False)
         ax2.spines['right'].set_color('#2C2C2E')
 
         ax.grid(True, color='#1C1C1E', lw=0.5)
-        # Legende
         ax.legend(loc='upper left', frameon=False, labelcolor='#E0E0E0', fontsize=9)
-        
         st.pyplot(fig)
         plt.close(fig)
         
-        s_val = metrics_t1['slope']
-        res_status, res_class = (t("ULTRA STABIL", "ULTRA STABLE"), "res-ultra") if s_val < 0.45 else (t("METABOLISCH RESILIENT", "METABOLIC RESILIENT"), "res-stable") if s_val < 0.75 else (t("STABILITÄTS-LIMIT", "STABILITY LIMIT"), "res-limit") if s_val < 1.1 else (t("KRITISCHER BEREICH", "CRITICAL ZONE"), "res-critical")
-        st.markdown(f'<div class="stability-box {res_class}">// {t("METABOLISCHE RESILIENZ", "METABOLIC RESILIENCE")} // <br><span style="font-size:18px; font-weight:700;">{res_status}</span><br><span style="font-size:12px; opacity:0.8;">VECTR-SCORE: {int(metrics_t1["stab"])}%</span></div>', unsafe_allow_html=True)
+        m_type = metrics_t1['vlamax_label']
+        res_class = "res-ultra" if metrics_t1['vlamax_val'] < 0.45 else "res-stable" if metrics_t1['vlamax_val'] < 0.75 else "res-critical"
+        st.markdown(f'<div class="stability-box {res_class}">// {t("METABOLIC PROFILE", "METABOLIC PROFILE")} // <br><span style="font-size:18px; font-weight:700;">{m_type}</span><br><span style="font-size:12px; opacity:0.8;">FLUSH RATE™: {int(metrics_t1["stab"])}%</span></div>', unsafe_allow_html=True)
 
     with tabs[1]: # ZONEN
         st.markdown(f"### // {t('ZONEN', 'ZONES')}")
         l1, l2, fmax = metrics_t1["lt1"], metrics_t1["lt2"], metrics_t1["fatmax"]
         hf1, hf2, hf_f = metrics_t1["hf_lt1"], metrics_t1["hf_lt2"], metrics_t1["hf_fatmax"]
-        
         z_data = [
             ("blue-neon", t("RECOVERY", "RECOVERY"), f"< {fmax*0.9:.1f}", "KM/H", f"< {hf_f-10}"),
             ("green-neon", t("LONG RUN", "LONG RUN"), f"{fmax*0.9:.1f}-{l1:.1f}", "KM/H", f"{hf_f-10}-{hf1}"),
@@ -308,59 +322,38 @@ if metrics_t1:
             ("orange-neon", t("SCHWELLE", "THRESHOLD"), f"{l2*0.95:.1f}-{l2*1.05:.1f}", "KM/H", f"{int(hf2*0.95)}-{int(hf2*1.03)}"),
             ("red-neon", t("HIT", "HIT"), f"> {l2*1.05:.1f}", "KM/H", f"> {int(hf2*1.03)}")
         ]
-        
         for cls, n, sp, unit, hf_r in z_data:
-            st.markdown(f"""
-                <div class="set-card {cls}" style="padding: 12px; min-height: 70px; margin-bottom: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                        <div style="flex: 1;">
-                            <span class="card-title" style="font-size: 11px; margin-bottom: 4px;">{n}</span>
-                            <div style="display: flex; align-items: baseline; gap: 4px;">
-                                <span style="font-size: 24px; font-weight: 700; color: white; font-family: monospace;">{sp}</span>
-                                <span style="font-size: 12px; color: #8E8E93; font-weight: 600;">{unit}</span>
-                            </div>
-                        </div>
-                        <div style="text-align: right; min-width: 80px;">
-                            <span style="font-size: 9px; font-weight: 800; color: #FF3131; text-transform: uppercase;">Ziel HF</span>
-                            <span style="font-size: 20px; font-weight: 700; color: #FF3131; font-family: monospace; display: block; line-height: 1;">{hf_r}</span>
-                            <span style="font-size: 9px; font-weight: 700; color: #FF3131; opacity: 0.8;">BPM</span>
-                        </div>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
-    with tabs[2]:
+            st.markdown(f"""<div class="set-card {cls}" style="padding: 12px; min-height: 70px; margin-bottom: 10px;"><div style="display: flex; justify-content: space-between; align-items: flex-start;"><div style="flex: 1;"><span class="card-title" style="font-size: 11px; margin-bottom: 4px;">{n}</span><div style="display: flex; align-items: baseline; gap: 4px;"><span style="font-size: 24px; font-weight: 700; color: white; font-family: monospace;">{sp}</span><span style="font-size: 12px; color: #8E8E93; font-weight: 600;">{unit}</span></div></div><div style="text-align: right; min-width: 80px;"><span style="font-size: 9px; font-weight: 800; color: #FF3131; text-transform: uppercase;">Ziel HF</span><span style="font-size: 20px; font-weight: 700; color: #FF3131; font-family: monospace; display: block; line-height: 1;">{hf_r}</span><span style="font-size: 9px; font-weight: 700; color: #FF3131; opacity: 0.8;">BPM</span></div></div></div>""", unsafe_allow_html=True)
+
+    with tabs[2]: # PROGNOSE
         f_d, f_cs, f_dr = (500, 1.02, 0.02) if level_select=="Elite" else (350, 1.0, 0.04) if level_select=="Ambitioniert" else (150, 0.96, 0.08)
         for dist, name in [(5000, "5K SPRINT"), (10000, "10K POWER"), (21097, t("HALBMARATHON", "HALF MARATHON")), (42195, t("MARATHON", "FULL MARATHON"))]:
             v_eff = metrics_t1["lt2"] * f_cs / 3.6
             t_s = (dist-f_d)/v_eff if dist<=10000 else dist/(v_eff*(1-(f_dr*(dist/v_eff/3600/2))))
             st.markdown(f'<div class="set-card blue-neon" style="min-height: auto;"><span class="card-title" style="margin-bottom: 12px;">{name}</span><div style="display: flex; align-items: baseline;"><span class="card-val-big" style="color:#00F2FF;">{fmt_time(t_s)}</span><span class="uni-pace" style="padding-left: 15px;">{fmt_pace((dist/t_s)*3.6)} /KM</span></div></div>', unsafe_allow_html=True)
 
-    with tabs[3]:
-        # ORIGINAL TEXTE UND FARBEN
+    with tabs[3]: # SET CARD
         st.markdown(f"### // {t('VECTR-X // SET CARD', 'VECTR-X // SET CARD')}")
-        
         bench_vo2 = get_benchmark_html(metrics_t1['vo2max'], "vo2max", "#FF3131")
-        st.markdown(f"""<div class="set-card-tall red-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("MOTOR // VO2MAX (est.)", "VO2MAX // ENGINE (est.)")}</span><div class="val-unit-row"><span class="card-val-big" style="font-size: 48px;">{int(metrics_t1['vo2max'])}</span><span class="card-unit-white">ML/MIN/KG</span></div></div>{bench_vo2}</div><p class="card-expl">{t('Die aerobe Kapazität. Die absolute Basis für deine Performance.', 'Your engine size (estimated). Foundation of your aerobic capacity.')}</p></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="set-card-tall red-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("MOTOR-KAPAZITÄT // VO2MAX", "ENGINE CAPACITY // VO2MAX")}</span><div class="val-unit-row"><span class="card-val-big" style="font-size: 48px;">{int(metrics_t1['vo2max'])}</span><span class="card-unit-white">ML/MIN/KG</span></div></div>{bench_vo2}</div><p class="card-expl">{t('Dein aerober Staubsauger. Die absolute Basis für den Laktat-Abbau.', 'Your aerobic vacuum. The foundation for lactate clearance.')}</p></div>""", unsafe_allow_html=True)
         
         c1, c2 = st.columns(2)
-        with c1: 
+        with c1:
             bench_fat = get_benchmark_html(metrics_t1['fatmax'], "fatmax", "#34C759")
-            st.markdown(f"""<div class="set-card-tall green-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("BASE // FATMAX", "BASE // FATMAX")}</span><div class="val-unit-row"><span class="card-val-big">{metrics_t1['fatmax']:.1f}</span><span class="card-unit-white">KM/H</span></div><span class="uni-pace" style="margin-top:2px;">{fmt_pace(metrics_t1['fatmax'])} /KM</span></div>{bench_fat}</div><p class="card-expl">{t('Dein Flow-Modus. Maximale Energie aus Fettstoffwechsel für endlose Ausdauer.', 'Flow State. Max energy from fat oxidation.')}</p></div>""", unsafe_allow_html=True)
-        
-        with c2: 
-            bench_re = get_benchmark_html(metrics_t1['re'], "re", "#00F2FF")
-            st.markdown(f"""<div class="set-card-tall blue-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("SPEED-TAX", "SPEED-TAX")}</span><div class="val-unit-row"><span class="card-val-big">{metrics_t1['re']:.2f}</span><span class="card-unit-white">MMOL/KMH</span></div></div>{bench_re}</div><p class="card-expl">{t('Deine Laktat-Steuer. Der energetische Preis für jedes km/h Beschleunigung.', 'Lactate cost per km/h. Your price for speed.')}</p></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class="set-card-tall green-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("BASE // FATMAX", "BASE // FATMAX")}</span><div class="val-unit-row"><span class="card-val-big">{metrics_t1['fatmax']:.1f}</span><span class="card-unit-white">KM/H</span></div><span class="uni-pace" style="margin-top:2px;">{fmt_pace(metrics_t1['fatmax'])} /KM</span></div>{bench_fat}</div><p class="card-expl">{t('Maximaler Fettstoffwechsel. Dein Treibstoff für die Langstrecke.', 'Max fat oxidation. Your fuel for the long haul.')}</p></div>""", unsafe_allow_html=True)
+        with c2:
+            bench_lt2 = get_benchmark_html(metrics_t1['lt2'], "lt2", "#FF9500")
+            st.markdown(f"""<div class="set-card-tall orange-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("SCHWELLE // iANS", "THRESHOLD // iANS")}</span><div class="val-unit-row"><span class="card-val-big">{metrics_t1['lt2']:.2f}</span><span class="card-unit-white">KM/H</span></div><span class="uni-pace" style="margin-top:2px;">{fmt_pace(metrics_t1['lt2'])} /KM</span></div>{bench_lt2}</div><p class="card-expl">{t('Deine rote Linie. Das maximale Tempo ohne System-Flutung.', 'Your red line. Max sustainable pace.')}</p></div>""", unsafe_allow_html=True)
         
         c3, c4 = st.columns(2)
-        with c3: 
-            bench_lt2 = get_benchmark_html(metrics_t1['lt2'], "lt2", "#FF9500")
-            st.markdown(f"""<div class="set-card-tall orange-neon"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("SCHWELLE // iANS", "THRESHOLD // iANS")}</span><div class="val-unit-row"><span class="card-val-big">{metrics_t1['lt2']:.2f}</span><span class="card-unit-white">KM/H</span></div><span class="uni-pace" style="margin-top:2px;">{fmt_pace(metrics_t1['lt2'])} /KM</span></div>{bench_lt2}</div><p class="card-expl">{t('Dein High-Speed Limit. Maximale Pace für 45-60min kontrollierte Belastung.', "Max sustainable pace. Your metabolic red line.")}</p></div>""", unsafe_allow_html=True)
-        
+        with c3:
+            bench_gp = get_benchmark_html(metrics_t1['vlamax_val'], "vlamax", "#BC13FE")
+            st.markdown(f"""<div class="set-card-tall" style="border-left: 8px solid #BC13FE;"><div class="card-content-split"><div class="card-left"><span class="card-title" style="color: #BC13FE;">{t("GLYCO POWER // VLaMAX", "GLYCO POWER // VLaMAX")}</span><div class="val-unit-row"><span class="card-val-big">{metrics_t1['vlamax_val']:.2f}</span><span class="card-unit-white">mmol/l/s</span></div></div>{bench_gp}</div><p class="card-expl">{t('Dein Turbo. Die Rate der Laktat-Produktion. Niedrig = Diesel / Hoch = Power.', 'Your turbo. Lactate production rate. Low = Diesel / High = Power.')}</p></div>""", unsafe_allow_html=True)
         with c4:
-            res_col = "#FFCC00" if metrics_t1['is_stable'] else "#FF3131"
-            res_neon = "yellow-neon" if metrics_t1['is_stable'] else "red-neon"
+            res_col = "#00F2FF" if metrics_t1['is_stable'] else "#FF3131"
             bench_stab = get_benchmark_html(metrics_t1['stab'], "stab", res_col)
-            st.markdown(f"""<div class="set-card-tall {res_neon}"><div class="card-content-split"><div class="card-left"><span class="card-title">{t("METABOLISCHE RESILIENZ", "METABOLIC RESILIENCE")}</span><div class="val-unit-row"><span class="card-val-big">{int(metrics_t1['stab'])}</span><span class="card-unit-white">%</span></div></div>{bench_stab}</div><p class="card-expl">{t('Deine System-Härte. Wie stabil dein Motor läuft, nachdem die Schwelle überschritten hast.', 'System stability under high-speed load.')}</p></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class="set-card-tall" style="border-left: 8px solid {res_col};"><div class="card-content-split"><div class="card-left"><span class="card-title" style="color: {res_col};">FLUSH RATE™</span><div class="val-unit-row"><span class="card-val-big">{int(metrics_t1['stab'])}</span><span class="card-unit-white">%</span></div></div>{bench_stab}</div><p class="card-expl">{t('Dein Staubsauger. Wie effizient dein Körper Laktat eliminiert.', 'Your vacuum. How efficiently your system clears lactate.')}</p></div>""", unsafe_allow_html=True)
+
+# --- FINALES ELSE GANZ LINKS ---
 else:
     st.error("Warten auf Eingabedaten...")
-
