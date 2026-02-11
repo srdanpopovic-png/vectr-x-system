@@ -218,20 +218,32 @@ if not is_athlete and not is_view_mode:
         st.markdown(f'<a href="{mail_link}" class="share-btn">✉ SEND TO ATHLETE</a>', unsafe_allow_html=True)
 
 else:
-    # --- ATHLETEN ANSICHT (EMPFÄNGER-LOGIK) ---
+# --- ATHLETEN ANSICHT (EMPFÄNGER-LOGIK) ---
     # Hier liest das Handy die Namen und Daten aus der URL
-    f_name = params.get("fn", "")
-    l_name = params.get("ln", "")
+    f_name = params.get("fn", [""])[0]
+    l_name = params.get("ln", [""])[0]
     full_n = f"{f_name} {l_name}".strip()
-    bday = params.get("bd", "")
-    sport = params.get("sp", "")
-    gender = params.get("g", "")
+    bday = params.get("bd", [""])[0]
+    sport = params.get("sp", ["Running"])[0]
+    gender = params.get("g", ["m"])[0]
     
     # Die biometrischen Daten aus der URL laden
     weight, height, sw = w_def, h_def, s_def
     v1, l1, h1 = v_def, l_def, hr_def
     
+    # --- FIX: vMax und All-Out aus URL extrahieren ---
+    # Wir nehmen vMax aus der URL ("vm"). Falls nicht da, nutzen wir die letzte Speed-Stufe (v1[-1])
+    try:
+        vm_def = float(params.get("vm", [v1[-1]])[0])
+    except:
+        vm_def = float(v1[-1])
+        
+    # All-Out Info aus URL ("ao"). Standardmäßig True.
+    ao_def = params.get("ao", ["true"])[0].lower() == "true"
+    
     level_select = "Ambitioniert"
+    
+    # Jetzt der Aufruf mit den definierten Variablen
     metrics_t1 = calculate_metrics(
         np.array(v1), 
         np.array(l1), 
