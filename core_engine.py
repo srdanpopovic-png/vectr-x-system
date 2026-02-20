@@ -1,6 +1,5 @@
 import numpy as np
 from scipy.interpolate import UnivariateSpline
-from collections import defaultdict
 
 def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
     # FIX: Umwandlung in NumPy-Arrays für mathematische Operationen
@@ -23,82 +22,65 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
     # .item() stellt sicher, dass wir einen float bekommen, kein 0-d Array
     v_ias = v_range[np.argmin(np.abs(l_range - ias_laktat))].item()
 
-    # 3. VO2max & VLaMax Logik (VECTR-X PRECISION UPDATE)
+    # 3. VO2max & VLaMax Logik
     vo2max_est = 3.5 * v_max
     
-    # Filterung der Belastungsstufen oberhalb der Schwelle (v_ias)
-    idx_anaerob = np.where(speeds >= (v_ias - 0.5))[0]
+    # JETZT FUNKTIONIERT ES: Filterung auf Basis des NumPy-Arrays
+    post_ias_v = speeds[speeds >= v_ias]
+    post_ias_l = lactates[speeds >= v_ias]
     
-    if len(idx_anaerob) >= 2:
-        v_ana = speeds[idx_anaerob]
-        l_ana = lactates[idx_anaerob]
-        # Lineare Regression: Berechnet die reale Steigungsrate des Laktats
-        slope, _ = np.polyfit(v_ana, l_ana, 1)
-        # VLaMax Score Normalisierung (Zielebereich 0.3 - 0.9)
-        vlamax_score = np.clip(slope / 4.5, 0.25, 0.95)
+    if len(post_ias_v) > 1:
+        slope = (post_ias_l[-1] - post_ias_l[0]) / (post_ias_v[-1] - post_ias_v[0])
     else:
-        # Fallback auf v_max Relation
-        vlamax_score = np.clip((v_max / 28), 0.4, 0.7)
+        # Fallback, falls die Schwelle ganz am Ende der Kurve liegt
+        slope = 0.5 
+    
+    vlamax_score = np.clip((slope * 5) / (v_max / 10), 0.2, 1.0)
+    
+    # ... Rest der Funktion wie gehabt ...
 
-    # 4. STABILITÄTS-INDEX & METABOLISCHE TYPISIERUNG
-    stab = round(100 - (vlamax_score * 75), 1)
-    is_stable = vlamax_score < 0.68
+    # 4. FLUSH RATE™ & Typisierung
+    flush_rate = 100 - (vlamax_score * 50)
+    if not is_all_out: flush_rate *= 0.9 
 
-    if vlamax_score < 0.48:
-        m_type, color, f_factor = "DIESEL / EKONOM", "#00FF41", 0.92
-    elif vlamax_score < 0.72:
-        m_type, color, f_factor = "ALLROUNDER / HYBRID", "#FFD700", 0.88
+    if vlamax_score < 0.45:
+        m_type, color, f_factor = "DIESEL / ENDURANCE", "#00F2FF", 0.92
+    elif vlamax_score < 0.75:
+        m_type, color, f_factor = "HYBRID / ALLROUNDER", "#FFD700", 0.88
     else:
         m_type, color, f_factor = "POWER / SPRINTER", "#FF003C", 0.82
 
-    # 5. VERFEINERTE PROGNOSE (HYROX vs. RUN)
-    base_exponent = 1.06 if vlamax_score < 0.48 else 1.08 if vlamax_score < 0.72 else 1.12
-    hyrox_malus = 0.04 
-    
-    # Hilfsfunktion für die Riegel-Berechnung (8km Hyrox vs 10km Run)
-    v_hyrox_8k = v_ias * (8 / 10)**(1 - (base_exponent + hyrox_malus))
-    v_run_10k = v_ias * (10 / 10)**(1 - base_exponent) 
-
-    # 6. SCHWELLEN-DETAILS
-    hf_ias = int(hr_spline(v_ias))
-    ias_lt1 = baseline + 0.5
-    v_lt1 = v_range[np.argmin(np.abs(l_range - ias_lt1))].item()
-    hf_lt1 = int(hr_spline(v_lt1))
-    
+    # 5. FatMax & Riegel Prognose
     v_fatmax = v_ias * f_factor
+    hf_ias = int(hr_spline(v_ias))
     hf_fatmax = int(hr_spline(v_fatmax))
+    riegel_exponent = 1.06 if vlamax_score < 0.45 else 1.08 if vlamax_score < 0.75 else 1.11
 
-    # 7. Finaler Return (Das unzerstörbare Sicherheitsnetz)
-    res = {
-        # Speeds
-        "v_ias": v_ias, "v_ias_kmh": v_ias, "lt2": v_ias, "v_lt2": v_ias,
-        "v_lt1": v_lt1, "v_lt1_kmh": v_lt1, "lt1": v_lt1,
-        "v_max": v_max, "v_fatmax": v_fatmax,
+# 6. NEU: LT1 (Aerobe Schwelle) für app_run.py Zeile 310
+    ias_lt1 = baseline + 0.5
+    v_lt1 = v_range[np.argmin(np.abs(l_range - ias_lt1))]
+    hf_lt1 = int(hr_spline(v_lt1))
+
+    # 7. Finaler Return mit allen Brücken (Aliases) für dein Frontend
+    return {
+        # Core Metrics
+        "v_ias": v_ias, "lt2": v_ias,
+        "v_lt1": v_lt1, "lt1": v_lt1,
+        "l_ias": ias_laktat, "hf_ias": hf_ias, "hf_lt2": hf_ias, "hf_lt1": hf_lt1,
+        "vo2max": vo2max_est, "vlamax_val": round(vlamax_score, 2),
+        "vlamax_label": m_type, "vlamax_color": color,
+        "flush_rate": round(flush_rate, 1), 
+        "re": round(flush_rate, 1),        
+        "stab": round(flush_rate, 1),      
+        "is_stable": flush_rate >= 70,     # <--- FIX für Zeile 369
+        "slope": round(slope, 2),    
+        "riegel_exp": riegel_exponent,
         
-        # Paces (min/km)
-        "p_ias": 60/v_ias if v_ias > 0 else 0,
-        "p_lt2": 60/v_ias if v_ias > 0 else 0,
-        "p_lt1": 60/v_lt1 if v_lt1 > 0 else 0,
-        "p_max": 60/v_max if v_max > 0 else 0,
+        # Grafik-Daten
+        "v_range": v_range, "l_range": l_range,
+        "v_fine": v_range, "l_fine": l_range, "h_fine": h_range,          
+        "v_orig": speeds, "l_orig": lactates, "h_orig": hr,
         
-        # Herzfrequenzen
-        "hf_ias": hf_ias, "hf_lt2": hf_ias, "hf_max": int(hr_spline(v_max)),
-        "hf_lt1": hf_lt1, "hf_fatmax": hf_fatmax,
-        
-        # Laktat & Stoffwechsel
-        "l_ias": ias_laktat, "l_lt2": ias_laktat, "l_max": np.max(lactates),
-        "vo2max": vo2max_est, "vlamax_val": vlamax_score,
-        "stab": stab, "flush_rate": stab, "is_stable": is_stable,
-        "m_type": m_type, "color": color,
-        
-        # Prognosen
-        "v_hyrox_8k": v_hyrox_8k, "v_run_10k": v_run_10k,
-        "riegel_exponent": base_exponent,
+        # Zonen
+        "fatmax": round(v_fatmax, 1), "hf_fatmax": hf_fatmax 
     }
-    
-    safe_output = defaultdict(lambda: 0.0, {
-        k: (round(float(v), 2) if isinstance(v, (float, np.float64, np.float32)) else v) 
-        for k, v in res.items()
-    })
-    
-    return safe_output
