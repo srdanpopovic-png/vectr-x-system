@@ -53,46 +53,40 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
     else:
         m_type, color, f_factor = "POWER / SPRINTER", "#FF003C", 0.82
 
-  # 5. FatMax & Stoffwechsel-Zonen
-    v_fatmax = v_ias * f_factor
-    hf_ias = int(hr_spline(v_ias))
-    hf_fatmax = int(hr_spline(v_fatmax))
+ # 5. VERFEINERTE PROGNOSE (HYROX vs. RUN)
+    # Ermüdungs-Exponent: Diesel (niedrig) bis Sprinter (hoch)
+    base_exponent = 1.06 if vlamax_score < 0.48 else 1.08 if vlamax_score < 0.72 else 1.12
     
-    # Riegel-Prognose (Jetzt dynamisch nach VLaMax-Typ)
-    # Ein Diesel (niedrige VLaMax) verliert auf Langstrecke weniger Speed
-    riegel_exponent = 1.05 if vlamax_score < 0.45 else 1.08 if vlamax_score < 0.72 else 1.12
+    # Hyrox-Spezifischer Malus (Zusatz-Ermüdung durch Kraft-Interferenz)
+    hyrox_malus = 0.04 
     
-# 6. NEU: LT1 (Aerobe Schwelle) für app_run.py Zeile 310
-    ias_lt1 = baseline + 0.5
-    v_lt1 = v_range[np.argmin(np.abs(l_range - ias_lt1))]
-    hf_lt1 = int(hr_spline(v_lt1))
+    # Hilfsfunktion für die Riegel-Berechnung
+    # v2 = v1 * (d2 / d1)^(1 - exponent)
+    v_hyrox_8k = v_ias * (8 / 10)**(1 - (base_exponent + hyrox_malus))
+    v_run_10k = v_ias * (10 / 10)**(1 - base_exponent) # Entspricht v_ias bei d=10
 
-    # 7. Finaler Return mit allen Brücken (Aliases) für dein Frontend
+    # 6. LT1 (Aerobe Schwelle) & FatMax
+    ias_lt1 = baseline + 0.5
+    v_lt1 = v_range[np.argmin(np.abs(l_range - ias_lt1))].item()
+    hf_lt1 = int(hr_spline(v_lt1))
+    v_fatmax = v_ias * f_factor
+    hf_fatmax = int(hr_spline(v_fatmax))
+
+    # 7. Finaler Return (Alle Brücken für app_run.py)
     return {
-        # Core Metrics
-        "v_ias": v_ias, 
-        "lt2": v_ias,
-        "v_lt1": v_lt1, 
-        "lt1": v_lt1,
-        "l_ias": ias_laktat, 
-        "hf_ias": hf_ias, 
-        "hf_lt2": hf_ias, 
-        "hf_lt1": hf_lt1,
-        "vo2max": vo2max_est, 
-        "v_max": v_max,
-        
-        # Stoffwechsel-Profil (Das neue Herzstück)
+        "v_ias": v_ias, "lt2": v_ias,
+        "v_lt1": v_lt1, "lt1": v_lt1,
+        "l_ias": ias_laktat, "hf_ias": hf_ias, "hf_lt2": hf_ias, "hf_lt1": hf_lt1,
+        "vo2max": vo2max_est, "v_max": v_max,
         "vlamax_val": vlamax_score,
         "stab": stab,
-        "flush_rate": stab,  # Hier lag der Fehler: Wir mappen stab auf flush_rate
+        "flush_rate": stab, # Kompatibilität mit altem Frontend
         "is_stable": is_stable,
         "m_type": m_type,
         "color": color,
-        
-        # Zonen & Prognosen
         "v_fatmax": v_fatmax,
         "hf_fatmax": hf_fatmax,
-        "v_hyrox_8k": v_hyrox_8k, # Die neue Hyrox-Prognose
+        "v_hyrox_8k": v_hyrox_8k, 
         "v_run_10k": v_run_10k,
-        "riegel_exponent": riegel_exponent
+        "riegel_exponent": base_exponent
     }
