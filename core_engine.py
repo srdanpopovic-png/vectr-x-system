@@ -52,13 +52,16 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
         m_type, color, f_factor = "ALLROUNDER / HYBRID", "#FFD700", 0.88
     else:
         m_type, color, f_factor = "POWER / SPRINTER", "#FF003C", 0.82
-        
-    # 5. FatMax & Riegel Prognose
+
+  # 5. FatMax & Stoffwechsel-Zonen
     v_fatmax = v_ias * f_factor
     hf_ias = int(hr_spline(v_ias))
     hf_fatmax = int(hr_spline(v_fatmax))
-    riegel_exponent = 1.06 if vlamax_score < 0.45 else 1.08 if vlamax_score < 0.75 else 1.11
-
+    
+    # Riegel-Prognose (Jetzt dynamisch nach VLaMax-Typ)
+    # Ein Diesel (niedrige VLaMax) verliert auf Langstrecke weniger Speed
+    riegel_exponent = 1.05 if vlamax_score < 0.45 else 1.08 if vlamax_score < 0.72 else 1.12
+    
 # 6. NEU: LT1 (Aerobe Schwelle) für app_run.py Zeile 310
     ias_lt1 = baseline + 0.5
     v_lt1 = v_range[np.argmin(np.abs(l_range - ias_lt1))]
