@@ -22,22 +22,29 @@ def calculate_metrics(speeds, lactates, hr, v_max, app_type="hybrid", is_all_out
     # .item() stellt sicher, dass wir einen float bekommen, kein 0-d Array
     v_ias = v_range[np.argmin(np.abs(l_range - ias_laktat))].item()
 
-  # 3. VO2max & RADIKALE VLAMAX-ANALYSE (Last-Step-Focus)
+# 3. VO2max & RADIKALE VLAMAX-ANALYSE (Last-Step-Focus)
     vo2max_est = 3.5 * v_max
+    last_slope = 0.0  # Sicherheits-Initialisierung, damit Punkt 7 nie einen Fehler wirft
     
     # Wir schauen uns explizit die Steigung der LETZTEN BEIDEN Punkte an
     # Das ist der Moment der maximalen Ausbelastung
     if len(speeds) >= 2:
         last_delta_l = lactates[-1] - lactates[-2]
         last_delta_v = speeds[-1] - speeds[-2]
-        last_slope = last_delta_l / last_delta_v
+        
+        # Sicherstellen, dass keine Division durch Null passiert
+        if last_delta_v != 0:
+            last_slope = last_delta_l / last_delta_v
+        else:
+            last_slope = 0.0
         
         # Radikale Sensitivität: Ein Zuwachs von 2 mmol pro km/h (wie bei dir)
         # muss den Score sofort in den Power-Bereich treiben.
-        # Wir setzen den Teiler auf 2.5 statt 4.5
         vlamax_score = np.clip(last_slope / 2.5, 0.3, 1.0)
     else:
+        # Standardwert, falls zu wenig Daten vorliegen
         vlamax_score = 0.5
+        last_slope = 0.0
 
 # 4. STABILITÄTS-INDEX & SPEZIFISCHE TYPISIERUNG
     stab_val = round(100 - (vlamax_score * 90), 1)
