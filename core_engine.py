@@ -75,19 +75,26 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
     v_fatmax = v_ias * f_factor
     hf_fatmax = int(hr_spline(v_fatmax))
 
-  # 7. Finaler Return (Universal-Mapping für app_run.py)
+# 7. Finaler Return (Universal-Mapping für app_run.py)
     res = {
-        # Core & Schwellen
-        "v_ias": v_ias, "lt2": v_ias,
-        "v_lt1": v_lt1, "lt1": v_lt1,
+        # Core & Schwellen (beide Namenskonventionen)
+        "v_ias": v_ias, 
+        "v_ias_kmh": v_ias,
+        "lt2": v_ias,
+        "v_lt1": v_lt1, 
+        "v_lt1_kmh": v_lt1,
+        "lt1": v_lt1,
         "l_ias": ias_laktat, 
-        "hf_ias": hf_ias, "hf_lt2": hf_ias, "hf_lt1": hf_lt1,
-        "vo2max": vo2max_est, "v_max": v_max,
+        "hf_ias": hf_ias, 
+        "hf_lt2": hf_ias, 
+        "hf_lt1": hf_lt1,
+        "vo2max": vo2max_est, 
+        "v_max": v_max,
         
         # Stoffwechsel-Profil
         "vlamax_val": vlamax_score,
         "stab": stab,
-        "flush_rate": stab, # Fallback für alte Kacheln
+        "flush_rate": stab, 
         "is_stable": is_stable,
         "m_type": m_type,
         "color": color,
@@ -99,10 +106,10 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
         "v_run_10k": v_run_10k,
         "riegel_exponent": base_exponent,
         
-        # Falls die App nach 'v_ias_kmh' oder ähnlichem sucht (Sicherheitsnetz)
-        "v_ias_kmh": v_ias,
-        "v_lt1_kmh": v_lt1
+        # Pacing-Aliase (falls die App diese in der Schleife sucht)
+        "p_ias": 60 / v_ias if v_ias > 0 else 0,
+        "p_lt1": 60 / v_lt1 if v_lt1 > 0 else 0
     }
     
-    # Sicherstellen, dass alle Werte gerundet sind (für die Anzeige)
+    # Automatische Rundung für alle numerischen Werte
     return {key: (round(value, 2) if isinstance(value, (float, np.float64)) else value) for key, value in res.items()}
