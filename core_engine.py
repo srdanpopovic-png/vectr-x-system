@@ -65,7 +65,7 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
     v_lt1 = v_range[np.argmin(np.abs(l_range - ias_lt1))].item()
     hf_lt1 = int(hr_spline(v_lt1))
 
-# 7. Finaler Return (Präzise Logik, Björn-kompatible Namen)
+# 7. Finaler Return (Maximale Kompatibilität für Björn)
     return {
         # Core & Schwellen
         "v_ias": v_ias, "lt2": v_ias,
@@ -73,19 +73,21 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
         "l_ias": ias_laktat, "hf_ias": hf_ias, "hf_lt2": hf_ias, "hf_lt1": hf_lt1,
         "vo2max": vo2max_est, "v_max": v_max,
         
-        # Identität & VLaMax
+        # Identität & VLaMax (Hier liegen oft die Fehlerquellen)
         "vlamax_val": round(vlamax_score, 2),
-        "vlamax_label": m_type,      # Das ist dein "POWER / SPRINTER"
-        "vlamax_color": color,
+        "vlamax_label": m_type,      # "POWER / SPRINTER"
+        "vlamax_color": color,       # Das ist der Hex-Code (Rot/Gelb/Grün)
+        "color": color,              # Alias falls Björn nur 'color' nutzt
+        "m_type": m_type,            # Alias falls Björn nur 'm_type' nutzt
         "slope": round(last_slope, 2),
         
-        # Die "Björn-Brücke" (Aliase damit nichts abstürzt)
-        "flush_rate": stab_val,      # Falls er diesen Key noch nutzt
-        "stab": stab_val,            # Falls er diesen Key noch nutzt
-        "re": stab_val,              # Falls er diesen Key noch nutzt
-        "is_stable": vlamax_score < 0.62,
+        # Die "Björn-Brücke"
+        "flush_rate": stab_val,
+        "stab": stab_val,
+        "re": stab_val,
+        "is_stable": vlamax_score < 0.58, # Synchronisiert mit deinen neuen Grenzen
         
-        # Grafik-Daten (Pflicht für die Plots)
+        # Grafik-Daten
         "v_range": v_range, "l_range": l_range,
         "v_fine": v_range, "l_fine": l_range, "h_fine": h_range,           
         "v_orig": speeds, "l_orig": lactates, "h_orig": hr,
