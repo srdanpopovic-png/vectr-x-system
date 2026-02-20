@@ -64,7 +64,7 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
     v_lt1 = v_range[np.argmin(np.abs(l_range - ias_lt1))].item()
     hf_lt1 = int(hr_spline(v_lt1))
 
-    # 7. Finaler Return (Voll kompatibel mit app_run.py)
+  # 7. Finaler Return (Voll kompatibel mit app_run.py)
     return {
         "v_ias": v_ias, "lt2": v_ias,
         "v_lt1": v_lt1, "lt1": v_lt1,
@@ -74,8 +74,8 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
         "flush_rate": stab_val, 
         "re": stab_val,        
         "stab": stab_val,      
-        "is_stable": vlamax_score < 0.68,
-        "last_slope": round(slope, 2),    
+        "is_stable": vlamax_score < 0.62,
+        "slope": round(last_slope, 2),    
         "riegel_exp": riegel_exponent,
         "v_range": v_range, "l_range": l_range,
         "v_fine": v_range, "l_fine": l_range, "h_fine": h_range,           
