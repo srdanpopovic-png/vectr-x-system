@@ -39,21 +39,30 @@ def calculate_metrics(speeds, lactates, hr, v_max, app_type="hybrid", is_all_out
     else:
         vlamax_score = 0.5
 
- # 4. STABILITÄTS-INDEX & VERSCHÄRFTE TYPISIERUNG
+# 4. STABILITÄTS-INDEX & SPEZIFISCHE TYPISIERUNG
     stab_val = round(100 - (vlamax_score * 90), 1)
     if not is_all_out: stab_val *= 0.8
 
-    # Die Ampel-Logik: Diesel (Grün), Hybrid (Gelb), Power (Rot)
-    if vlamax_score < 0.40: 
-        # DIESEL: Extrem effizient
-        m_type, color, f_factor = "DIESEL / EKONOM", "#00FF41", 0.94
-    elif vlamax_score < 0.58:
-        # HYBRID: Die goldene Mitte (JETZT GELB)
-        m_type, color, f_factor = "HYBRID / ALLROUNDER", "#FFD700", 0.88
+    if app_type == "run":
+        # --- LOGIK FÜR REINE LÄUFER (RUN APP) ---
+        # Läufer müssen ökonomischer sein, daher engere Grenzen
+        if vlamax_score < 0.35: 
+            m_type, color, f_factor = "DIESEL / ENDURANCE", "#00FF41", 0.96
+        elif vlamax_score < 0.52:
+            m_type, color, f_factor = "ALLROUNDER", "#FFD700", 0.90
+        else:
+            m_type, color, f_factor = "SPRINTER / POWER", "#FF003C", 0.82
+            
     else:
-        # POWER: Explosiv, aber instabil (ROT)
-        m_type, color, f_factor = "POWER / SPRINTER", "#FF003C", 0.80
-        
+        # --- LOGIK FÜR HYBRID-ATHLETEN (VECTR-X APP) ---
+        # Hyrox braucht mehr anaerobe Kapazität für die Stationen
+        if vlamax_score < 0.40: 
+            m_type, color, f_factor = "DIESEL / EKONOM", "#00FF41", 0.94
+        elif vlamax_score < 0.58:
+            m_type, color, f_factor = "HYBRID / ALLROUNDER", "#FFD700", 0.88
+        else:
+            m_type, color, f_factor = "POWER / SPRINTER", "#FF003C", 0.80
+            
     # 5. FatMax & Riegel Prognose
     v_fatmax = v_ias * f_factor
     hf_ias = int(hr_spline(v_ias))
