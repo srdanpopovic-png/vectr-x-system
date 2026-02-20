@@ -22,34 +22,37 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
     # .item() stellt sicher, dass wir einen float bekommen, kein 0-d Array
     v_ias = v_range[np.argmin(np.abs(l_range - ias_laktat))].item()
 
-    # 3. VO2max & VLaMax Logik
+   # 3. VO2max & VLaMax Logik (VECTR-X PRECISON UPDATE)
     vo2max_est = 3.5 * v_max
     
-    # JETZT FUNKTIONIERT ES: Filterung auf Basis des NumPy-Arrays
-    post_ias_v = speeds[speeds >= v_ias]
-    post_ias_l = lactates[speeds >= v_ias]
+    # Filterung der Belastungsstufen oberhalb der Schwelle (v_ias)
+    # Wir nehmen einen Puffer von 0.5 km/h vor der Schwelle mit rein
+    idx_anaerob = np.where(speeds >= (v_ias - 0.5))[0]
     
-    if len(post_ias_v) > 1:
-        slope = (post_ias_l[-1] - post_ias_l[0]) / (post_ias_v[-1] - post_ias_v[0])
+    if len(idx_anaerob) >= 2:
+        v_ana = speeds[idx_anaerob]
+        l_ana = lactates[idx_anaerob]
+        # Lineare Regression: Berechnet die reale Steigungsrate des Laktats
+        slope, _ = np.polyfit(v_ana, l_ana, 1)
+        # VLaMax Score Normalisierung (Zielebereich 0.3 - 0.9)
+        # Wir setzen die Steigung ins Verhältnis zur maximal erreichten Speed
+        vlamax_score = np.clip(slope / 4.5, 0.25, 0.95)
     else:
-        # Fallback, falls die Schwelle ganz am Ende der Kurve liegt
-        slope = 0.5 
-    
-    vlamax_score = np.clip((slope * 5) / (v_max / 10), 0.2, 1.0)
-    
-    # ... Rest der Funktion wie gehabt ...
+        # Fallback auf v_max Relation, falls der Test zu früh abgebrochen wurde
+        vlamax_score = np.clip((v_max / 28), 0.4, 0.7)
 
-    # 4. FLUSH RATE™ & Typisierung
-    flush_rate = 100 - (vlamax_score * 50)
-    if not is_all_out: flush_rate *= 0.9 
+    # 4. STABILITÄTS-INDEX & METABOLISCHE TYPISIERUNG
+    # Hohe VLaMax = hohe Glykolyse = geringere metabolische Stabilität
+    stab = round(100 - (vlamax_score * 75), 1)
+    is_stable = vlamax_score < 0.68  # Wichtiger Flag für die App-Anzeige
 
-    if vlamax_score < 0.45:
-        m_type, color, f_factor = "DIESEL / ENDURANCE", "#00F2FF", 0.92
-    elif vlamax_score < 0.75:
-        m_type, color, f_factor = "HYBRID / ALLROUNDER", "#FFD700", 0.88
+    if vlamax_score < 0.48:
+        m_type, color, f_factor = "DIESEL / EKONOM", "#00FF41", 0.92
+    elif vlamax_score < 0.72:
+        m_type, color, f_factor = "ALLROUNDER / HYBRID", "#FFD700", 0.88
     else:
         m_type, color, f_factor = "POWER / SPRINTER", "#FF003C", 0.82
-
+        
     # 5. FatMax & Riegel Prognose
     v_fatmax = v_ias * f_factor
     hf_ias = int(hr_spline(v_ias))
