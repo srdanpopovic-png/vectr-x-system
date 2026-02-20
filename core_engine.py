@@ -75,15 +75,18 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
     v_fatmax = v_ias * f_factor
     hf_fatmax = int(hr_spline(v_fatmax))
 
-# 7. Finaler Return (Das "Unzerstörbare" Dictionary)
+from collections import defaultdict
+
+    # 7. Finaler Return (Das unzerstörbare Sicherheitsnetz)
     res = {
-        # Basis-Speeds (km/h)
+        # Speeds
         "v_ias": v_ias, "v_ias_kmh": v_ias, "lt2": v_ias, "v_lt2": v_ias,
-        "v_lt1": v_lt1, "v_lt1_kmh": v_lt1, "lt1": v_lt1,
+        "v_lt1": v_lt1, "v_lt1_kmh": v_lt1, "lt1": v_lt1, "v_lt1": v_lt1,
         "v_max": v_max, "v_fatmax": v_fatmax,
         
-        # Paces (min/km) - Das wird oft in Tabellen-Schleifen gesucht
+        # Paces (min/km)
         "p_ias": 60/v_ias if v_ias > 0 else 0,
+        "p_lt2": 60/v_ias if v_ias > 0 else 0,
         "p_lt1": 60/v_lt1 if v_lt1 > 0 else 0,
         "p_max": 60/v_max if v_max > 0 else 0,
         
@@ -102,13 +105,12 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
         "riegel_exponent": base_exponent,
     }
     
-    # Der "Universal-Key-Fixer": Falls die App nach v_ias_ms oder ähnlichem sucht
-    # Wir runden alles und fangen fehlende Keys ab
-    final_output = {}
-    for key, value in res.items():
-        if isinstance(value, (float, np.float64, np.float32)):
-            final_output[key] = round(float(value), 2)
-        else:
-            final_output[key] = value
-            
-    return final_output
+    # Der ultimative Fix: Verwandle das Dictionary in ein defaultdict.
+    # Wenn die App metrics_t1['irgendwas'] aufruft, das nicht existiert,
+    # bekommt sie 0.0 statt eines Absturzes.
+    safe_output = defaultdict(lambda: 0.0, {
+        k: (round(float(v), 2) if isinstance(v, (float, np.float64, np.float32)) else v) 
+        for k, v in res.items()
+    })
+    
+    return safe_output
