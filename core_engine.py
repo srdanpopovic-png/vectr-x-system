@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.interpolate import UnivariateSpline
+from collections import defaultdict
 
 def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
     # FIX: Umwandlung in NumPy-Arrays für mathematische Operationen
@@ -22,11 +23,10 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
     # .item() stellt sicher, dass wir einen float bekommen, kein 0-d Array
     v_ias = v_range[np.argmin(np.abs(l_range - ias_laktat))].item()
 
-   # 3. VO2max & VLaMax Logik (VECTR-X PRECISON UPDATE)
+    # 3. VO2max & VLaMax Logik (VECTR-X PRECISION UPDATE)
     vo2max_est = 3.5 * v_max
     
     # Filterung der Belastungsstufen oberhalb der Schwelle (v_ias)
-    # Wir nehmen einen Puffer von 0.5 km/h vor der Schwelle mit rein
     idx_anaerob = np.where(speeds >= (v_ias - 0.5))[0]
     
     if len(idx_anaerob) >= 2:
@@ -35,16 +35,14 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
         # Lineare Regression: Berechnet die reale Steigungsrate des Laktats
         slope, _ = np.polyfit(v_ana, l_ana, 1)
         # VLaMax Score Normalisierung (Zielebereich 0.3 - 0.9)
-        # Wir setzen die Steigung ins Verhältnis zur maximal erreichten Speed
         vlamax_score = np.clip(slope / 4.5, 0.25, 0.95)
     else:
-        # Fallback auf v_max Relation, falls der Test zu früh abgebrochen wurde
+        # Fallback auf v_max Relation
         vlamax_score = np.clip((v_max / 28), 0.4, 0.7)
 
     # 4. STABILITÄTS-INDEX & METABOLISCHE TYPISIERUNG
-    # Hohe VLaMax = hohe Glykolyse = geringere metabolische Stabilität
     stab = round(100 - (vlamax_score * 75), 1)
-    is_stable = vlamax_score < 0.68  # Wichtiger Flag für die App-Anzeige
+    is_stable = vlamax_score < 0.68
 
     if vlamax_score < 0.48:
         m_type, color, f_factor = "DIESEL / EKONOM", "#00FF41", 0.92
@@ -53,21 +51,16 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
     else:
         m_type, color, f_factor = "POWER / SPRINTER", "#FF003C", 0.82
 
-# 5. VERFEINERTE PROGNOSE (HYROX vs. RUN)
-    # Ermüdungs-Exponent: Diesel (niedrig) bis Sprinter (hoch)
+    # 5. VERFEINERTE PROGNOSE (HYROX vs. RUN)
     base_exponent = 1.06 if vlamax_score < 0.48 else 1.08 if vlamax_score < 0.72 else 1.12
-    
-    # Hyrox-Spezifischer Malus (Zusatz-Ermüdung durch Kraft-Interferenz)
     hyrox_malus = 0.04 
     
     # Hilfsfunktion für die Riegel-Berechnung (8km Hyrox vs 10km Run)
     v_hyrox_8k = v_ias * (8 / 10)**(1 - (base_exponent + hyrox_malus))
     v_run_10k = v_ias * (10 / 10)**(1 - base_exponent) 
 
-    # 6. SCHWELLEN-DETAILS (Hier fehlte die Variable!)
-    hf_ias = int(hr_spline(v_ias)) # Herzfrequenz an der IAS
-    
-    # LT1 (Aerobe Schwelle) & FatMax
+    # 6. SCHWELLEN-DETAILS
+    hf_ias = int(hr_spline(v_ias))
     ias_lt1 = baseline + 0.5
     v_lt1 = v_range[np.argmin(np.abs(l_range - ias_lt1))].item()
     hf_lt1 = int(hr_spline(v_lt1))
@@ -75,13 +68,11 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
     v_fatmax = v_ias * f_factor
     hf_fatmax = int(hr_spline(v_fatmax))
 
-from collections import defaultdict
-
     # 7. Finaler Return (Das unzerstörbare Sicherheitsnetz)
     res = {
         # Speeds
         "v_ias": v_ias, "v_ias_kmh": v_ias, "lt2": v_ias, "v_lt2": v_ias,
-        "v_lt1": v_lt1, "v_lt1_kmh": v_lt1, "lt1": v_lt1, "v_lt1": v_lt1,
+        "v_lt1": v_lt1, "v_lt1_kmh": v_lt1, "lt1": v_lt1,
         "v_max": v_max, "v_fatmax": v_fatmax,
         
         # Paces (min/km)
@@ -105,9 +96,6 @@ from collections import defaultdict
         "riegel_exponent": base_exponent,
     }
     
-    # Der ultimative Fix: Verwandle das Dictionary in ein defaultdict.
-    # Wenn die App metrics_t1['irgendwas'] aufruft, das nicht existiert,
-    # bekommt sie 0.0 statt eines Absturzes.
     safe_output = defaultdict(lambda: 0.0, {
         k: (round(float(v), 2) if isinstance(v, (float, np.float64, np.float32)) else v) 
         for k, v in res.items()
