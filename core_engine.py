@@ -53,22 +53,25 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
     else:
         m_type, color, f_factor = "POWER / SPRINTER", "#FF003C", 0.82
 
- # 5. VERFEINERTE PROGNOSE (HYROX vs. RUN)
+# 5. VERFEINERTE PROGNOSE (HYROX vs. RUN)
     # Ermüdungs-Exponent: Diesel (niedrig) bis Sprinter (hoch)
     base_exponent = 1.06 if vlamax_score < 0.48 else 1.08 if vlamax_score < 0.72 else 1.12
     
     # Hyrox-Spezifischer Malus (Zusatz-Ermüdung durch Kraft-Interferenz)
     hyrox_malus = 0.04 
     
-    # Hilfsfunktion für die Riegel-Berechnung
-    # v2 = v1 * (d2 / d1)^(1 - exponent)
+    # Hilfsfunktion für die Riegel-Berechnung (8km Hyrox vs 10km Run)
     v_hyrox_8k = v_ias * (8 / 10)**(1 - (base_exponent + hyrox_malus))
-    v_run_10k = v_ias * (10 / 10)**(1 - base_exponent) # Entspricht v_ias bei d=10
+    v_run_10k = v_ias * (10 / 10)**(1 - base_exponent) 
 
-    # 6. LT1 (Aerobe Schwelle) & FatMax
+    # 6. SCHWELLEN-DETAILS (Hier fehlte die Variable!)
+    hf_ias = int(hr_spline(v_ias)) # Herzfrequenz an der IAS
+    
+    # LT1 (Aerobe Schwelle) & FatMax
     ias_lt1 = baseline + 0.5
     v_lt1 = v_range[np.argmin(np.abs(l_range - ias_lt1))].item()
     hf_lt1 = int(hr_spline(v_lt1))
+    
     v_fatmax = v_ias * f_factor
     hf_fatmax = int(hr_spline(v_fatmax))
 
