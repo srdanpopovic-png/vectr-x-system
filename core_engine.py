@@ -70,23 +70,29 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
     # 7. Finaler Return mit allen Brücken (Aliases) für dein Frontend
     return {
         # Core Metrics
-        "v_ias": v_ias, "lt2": v_ias,
-        "v_lt1": v_lt1, "lt1": v_lt1,
-        "l_ias": ias_laktat, "hf_ias": hf_ias, "hf_lt2": hf_ias, "hf_lt1": hf_lt1,
-        "vo2max": vo2max_est, "vlamax_val": round(vlamax_score, 2),
-        "vlamax_label": m_type, "vlamax_color": color,
-        "flush_rate": round(flush_rate, 1), 
-        "re": round(flush_rate, 1),        
-        "stab": round(flush_rate, 1),      
-        "is_stable": flush_rate >= 70,     # <--- FIX für Zeile 369
-        "slope": round(slope, 2),    
-        "riegel_exp": riegel_exponent,
+        "v_ias": v_ias, 
+        "lt2": v_ias,
+        "v_lt1": v_lt1, 
+        "lt1": v_lt1,
+        "l_ias": ias_laktat, 
+        "hf_ias": hf_ias, 
+        "hf_lt2": hf_ias, 
+        "hf_lt1": hf_lt1,
+        "vo2max": vo2max_est, 
+        "v_max": v_max,
         
-        # Grafik-Daten
-        "v_range": v_range, "l_range": l_range,
-        "v_fine": v_range, "l_fine": l_range, "h_fine": h_range,          
-        "v_orig": speeds, "l_orig": lactates, "h_orig": hr,
+        # Stoffwechsel-Profil (Das neue Herzstück)
+        "vlamax_val": vlamax_score,
+        "stab": stab,
+        "flush_rate": stab,  # Hier lag der Fehler: Wir mappen stab auf flush_rate
+        "is_stable": is_stable,
+        "m_type": m_type,
+        "color": color,
         
-        # Zonen
-        "fatmax": round(v_fatmax, 1), "hf_fatmax": hf_fatmax 
+        # Zonen & Prognosen
+        "v_fatmax": v_fatmax,
+        "hf_fatmax": hf_fatmax,
+        "v_hyrox_8k": v_hyrox_8k, # Die neue Hyrox-Prognose
+        "v_run_10k": v_run_10k,
+        "riegel_exponent": riegel_exponent
     }
