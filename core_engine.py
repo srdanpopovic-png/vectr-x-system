@@ -64,21 +64,33 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
     v_lt1 = v_range[np.argmin(np.abs(l_range - ias_lt1))].item()
     hf_lt1 = int(hr_spline(v_lt1))
 
-  # 7. Finaler Return (Voll kompatibel mit app_run.py)
+# 7. Finaler Return (Präzise Logik, Björn-kompatible Namen)
     return {
+        # Core & Schwellen
         "v_ias": v_ias, "lt2": v_ias,
         "v_lt1": v_lt1, "lt1": v_lt1,
         "l_ias": ias_laktat, "hf_ias": hf_ias, "hf_lt2": hf_ias, "hf_lt1": hf_lt1,
-        "vo2max": vo2max_est, "vlamax_val": round(vlamax_score, 2),
-        "vlamax_label": m_type, "vlamax_color": color,
-        "flush_rate": stab_val, 
-        "re": stab_val,        
-        "stab": stab_val,      
+        "vo2max": vo2max_est, "v_max": v_max,
+        
+        # Identität & VLaMax
+        "vlamax_val": round(vlamax_score, 2),
+        "vlamax_label": m_type,      # Das ist dein "POWER / SPRINTER"
+        "vlamax_color": color,
+        "slope": round(last_slope, 2),
+        
+        # Die "Björn-Brücke" (Aliase damit nichts abstürzt)
+        "flush_rate": stab_val,      # Falls er diesen Key noch nutzt
+        "stab": stab_val,            # Falls er diesen Key noch nutzt
+        "re": stab_val,              # Falls er diesen Key noch nutzt
         "is_stable": vlamax_score < 0.62,
-        "slope": round(last_slope, 2),    
-        "riegel_exp": riegel_exponent,
+        
+        # Grafik-Daten (Pflicht für die Plots)
         "v_range": v_range, "l_range": l_range,
         "v_fine": v_range, "l_fine": l_range, "h_fine": h_range,           
         "v_orig": speeds, "l_orig": lactates, "h_orig": hr,
-        "fatmax": round(v_fatmax, 1), "hf_fatmax": hf_fatmax 
+        
+        # Hyrox-Value
+        "fatmax": round(v_fatmax, 1), 
+        "hf_fatmax": hf_fatmax,
+        "riegel_exp": riegel_exponent
     }
