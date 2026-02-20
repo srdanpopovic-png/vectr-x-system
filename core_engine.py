@@ -39,20 +39,21 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
     else:
         vlamax_score = 0.5
 
-    # 4. STABILITÄTS-INDEX & NEUE TYPISIERUNG
-    # Wir ziehen die Stabilität massiv ab, wenn das Laktat hinten raus schießt
+ # 4. STABILITÄTS-INDEX & VERSCHÄRFTE TYPISIERUNG
     stab_val = round(100 - (vlamax_score * 90), 1)
     if not is_all_out: stab_val *= 0.8
 
-    # Neue Grenzen: Wer am Ende so steil geht wie in deinem Bild, 
-    # MUSS in "POWER / SPRINTER" landen.
+    # Die Ampel-Logik: Diesel (Grün), Hybrid (Gelb), Power (Rot)
     if vlamax_score < 0.40: 
+        # DIESEL: Extrem effizient
         m_type, color, f_factor = "DIESEL / EKONOM", "#00FF41", 0.94
     elif vlamax_score < 0.58:
+        # HYBRID: Die goldene Mitte (JETZT GELB)
         m_type, color, f_factor = "HYBRID / ALLROUNDER", "#FFD700", 0.88
     else:
+        # POWER: Explosiv, aber instabil (ROT)
         m_type, color, f_factor = "POWER / SPRINTER", "#FF003C", 0.80
-
+        
     # 5. FatMax & Riegel Prognose
     v_fatmax = v_ias * f_factor
     hf_ias = int(hr_spline(v_ias))
