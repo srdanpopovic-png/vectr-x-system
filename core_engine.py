@@ -63,11 +63,22 @@ def calculate_metrics(speeds, lactates, hr, v_max, app_type="hybrid", is_all_out
         else:
             m_type, color, f_factor = "POWER / SPRINTER", "#FF003C", 0.80
             
-    # 5. FatMax & Riegel Prognose
+# 5. Spezifische FatMax & Riegel Prognose (Differenziert nach Sportart)
+    
+    # Zuerst den Riegel-Exponenten festlegen (Wie stark bricht die Pace auf Distanz ein?)
+    if app_type == "run":
+        # Läufer sind auf Distanz effizienter (flachere Kurve)
+        riegel_exponent = 1.05 if vlamax_score < 0.35 else 1.07 if vlamax_score < 0.52 else 1.10
+    else:
+        # Hybrid-Athleten (Vectr-X) ermüden durch Muskelmasse schneller (steilere Kurve)
+        riegel_exponent = 1.06 if vlamax_score < 0.40 else 1.08 if vlamax_score < 0.58 else 1.12
+
+    # Jetzt die FatMax-Berechnung
     v_fatmax = v_ias * f_factor
+    
+    # Herzfrequenzen über den Spline ermitteln
     hf_ias = int(hr_spline(v_ias))
     hf_fatmax = int(hr_spline(v_fatmax))
-    riegel_exponent = 1.06 if vlamax_score < 0.48 else 1.08 if vlamax_score < 0.72 else 1.12
 
     # 6. LT1 (Aerobe Schwelle)
     ias_lt1 = baseline + 0.5
