@@ -75,41 +75,40 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
     v_fatmax = v_ias * f_factor
     hf_fatmax = int(hr_spline(v_fatmax))
 
-# 7. Finaler Return (Universal-Mapping für app_run.py)
+# 7. Finaler Return (Das "Unzerstörbare" Dictionary)
     res = {
-        # Core & Schwellen (beide Namenskonventionen)
-        "v_ias": v_ias, 
-        "v_ias_kmh": v_ias,
-        "lt2": v_ias,
-        "v_lt1": v_lt1, 
-        "v_lt1_kmh": v_lt1,
-        "lt1": v_lt1,
-        "l_ias": ias_laktat, 
-        "hf_ias": hf_ias, 
-        "hf_lt2": hf_ias, 
-        "hf_lt1": hf_lt1,
-        "vo2max": vo2max_est, 
-        "v_max": v_max,
+        # Basis-Speeds (km/h)
+        "v_ias": v_ias, "v_ias_kmh": v_ias, "lt2": v_ias, "v_lt2": v_ias,
+        "v_lt1": v_lt1, "v_lt1_kmh": v_lt1, "lt1": v_lt1,
+        "v_max": v_max, "v_fatmax": v_fatmax,
         
-        # Stoffwechsel-Profil
-        "vlamax_val": vlamax_score,
-        "stab": stab,
-        "flush_rate": stab, 
-        "is_stable": is_stable,
-        "m_type": m_type,
-        "color": color,
+        # Paces (min/km) - Das wird oft in Tabellen-Schleifen gesucht
+        "p_ias": 60/v_ias if v_ias > 0 else 0,
+        "p_lt1": 60/v_lt1 if v_lt1 > 0 else 0,
+        "p_max": 60/v_max if v_max > 0 else 0,
         
-        # Zonen & Prognosen
-        "v_fatmax": v_fatmax,
-        "hf_fatmax": hf_fatmax,
-        "v_hyrox_8k": v_hyrox_8k, 
-        "v_run_10k": v_run_10k,
+        # Herzfrequenzen
+        "hf_ias": hf_ias, "hf_lt2": hf_ias, "hf_max": int(hr_spline(v_max)),
+        "hf_lt1": hf_lt1, "hf_fatmax": hf_fatmax,
+        
+        # Laktat & Stoffwechsel
+        "l_ias": ias_laktat, "l_lt2": ias_laktat, "l_max": np.max(lactates),
+        "vo2max": vo2max_est, "vlamax_val": vlamax_score,
+        "stab": stab, "flush_rate": stab, "is_stable": is_stable,
+        "m_type": m_type, "color": color,
+        
+        # Prognosen
+        "v_hyrox_8k": v_hyrox_8k, "v_run_10k": v_run_10k,
         "riegel_exponent": base_exponent,
-        
-        # Pacing-Aliase (falls die App diese in der Schleife sucht)
-        "p_ias": 60 / v_ias if v_ias > 0 else 0,
-        "p_lt1": 60 / v_lt1 if v_lt1 > 0 else 0
     }
     
-    # Automatische Rundung für alle numerischen Werte
-    return {key: (round(value, 2) if isinstance(value, (float, np.float64)) else value) for key, value in res.items()}
+    # Der "Universal-Key-Fixer": Falls die App nach v_ias_ms oder ähnlichem sucht
+    # Wir runden alles und fangen fehlende Keys ab
+    final_output = {}
+    for key, value in res.items():
+        if isinstance(value, (float, np.float64, np.float32)):
+            final_output[key] = round(float(value), 2)
+        else:
+            final_output[key] = value
+            
+    return final_output
