@@ -22,33 +22,36 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
     # .item() stellt sicher, dass wir einen float bekommen, kein 0-d Array
     v_ias = v_range[np.argmin(np.abs(l_range - ias_laktat))].item()
 
-  # 3. VO2max & PRÄZISIONS-VLAMAX (Regression statt 2-Punkt-Messung)
+  # 3. VO2max & RADIKALE VLAMAX-ANALYSE (Last-Step-Focus)
     vo2max_est = 3.5 * v_max
     
-    # Wir isolieren die Stufen ab der Schwelle für die anaerobe Steigung
-    idx_anaerob = np.where(speeds >= (v_ias - 0.5))[0]
-    
-    if len(idx_anaerob) >= 2:
-        v_ana = speeds[idx_anaerob]
-        l_ana = lactates[idx_anaerob]
-        # Lineare Regression für die reale Laktat-Zuwachsrate
-        slope, _ = np.polyfit(v_ana, l_ana, 1)
-        # Normierung: Ein Slope von ca. 4.5 mmol/kmh entspricht hoher VLaMax
-        vlamax_score = np.clip(slope / 4.5, 0.25, 0.95)
+    # Wir schauen uns explizit die Steigung der LETZTEN BEIDEN Punkte an
+    # Das ist der Moment der maximalen Ausbelastung
+    if len(speeds) >= 2:
+        last_delta_l = lactates[-1] - lactates[-2]
+        last_delta_v = speeds[-1] - speeds[-2]
+        last_slope = last_delta_l / last_delta_v
+        
+        # Radikale Sensitivität: Ein Zuwachs von 2 mmol pro km/h (wie bei dir)
+        # muss den Score sofort in den Power-Bereich treiben.
+        # Wir setzen den Teiler auf 2.5 statt 4.5
+        vlamax_score = np.clip(last_slope / 2.5, 0.3, 1.0)
     else:
-        slope = 0.5
-        vlamax_score = np.clip((v_max / 28), 0.4, 0.7)
+        vlamax_score = 0.5
 
-    # 4. STABILITÄTS-INDEX (Ehemals Flush Rate) & Typisierung
-    stab_val = round(100 - (vlamax_score * 75), 1)
-    if not is_all_out: stab_val *= 0.9
+    # 4. STABILITÄTS-INDEX & NEUE TYPISIERUNG
+    # Wir ziehen die Stabilität massiv ab, wenn das Laktat hinten raus schießt
+    stab_val = round(100 - (vlamax_score * 90), 1)
+    if not is_all_out: stab_val *= 0.8
 
-    if vlamax_score < 0.48:
-        m_type, color, f_factor = "DIESEL / EKONOM", "#00FF41", 0.92
-    elif vlamax_score < 0.72:
+    # Neue Grenzen: Wer am Ende so steil geht wie in deinem Bild, 
+    # MUSS in "POWER / SPRINTER" landen.
+    if vlamax_score < 0.40: 
+        m_type, color, f_factor = "DIESEL / EKONOM", "#00FF41", 0.94
+    elif vlamax_score < 0.58:
         m_type, color, f_factor = "HYBRID / ALLROUNDER", "#FFD700", 0.88
     else:
-        m_type, color, f_factor = "POWER / SPRINTER", "#FF003C", 0.82
+        m_type, color, f_factor = "POWER / SPRINTER", "#FF003C", 0.80
 
     # 5. FatMax & Riegel Prognose
     v_fatmax = v_ias * f_factor
