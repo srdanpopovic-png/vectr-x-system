@@ -75,21 +75,34 @@ def calculate_metrics(speeds, lactates, hr, v_max, is_all_out=True):
     v_fatmax = v_ias * f_factor
     hf_fatmax = int(hr_spline(v_fatmax))
 
-    # 7. Finaler Return (Alle Brücken für app_run.py)
-    return {
+  # 7. Finaler Return (Universal-Mapping für app_run.py)
+    res = {
+        # Core & Schwellen
         "v_ias": v_ias, "lt2": v_ias,
         "v_lt1": v_lt1, "lt1": v_lt1,
-        "l_ias": ias_laktat, "hf_ias": hf_ias, "hf_lt2": hf_ias, "hf_lt1": hf_lt1,
+        "l_ias": ias_laktat, 
+        "hf_ias": hf_ias, "hf_lt2": hf_ias, "hf_lt1": hf_lt1,
         "vo2max": vo2max_est, "v_max": v_max,
+        
+        # Stoffwechsel-Profil
         "vlamax_val": vlamax_score,
         "stab": stab,
-        "flush_rate": stab, # Kompatibilität mit altem Frontend
+        "flush_rate": stab, # Fallback für alte Kacheln
         "is_stable": is_stable,
         "m_type": m_type,
         "color": color,
+        
+        # Zonen & Prognosen
         "v_fatmax": v_fatmax,
         "hf_fatmax": hf_fatmax,
         "v_hyrox_8k": v_hyrox_8k, 
         "v_run_10k": v_run_10k,
-        "riegel_exponent": base_exponent
+        "riegel_exponent": base_exponent,
+        
+        # Falls die App nach 'v_ias_kmh' oder ähnlichem sucht (Sicherheitsnetz)
+        "v_ias_kmh": v_ias,
+        "v_lt1_kmh": v_lt1
     }
+    
+    # Sicherstellen, dass alle Werte gerundet sind (für die Anzeige)
+    return {key: (round(value, 2) if isinstance(value, (float, np.float64)) else value) for key, value in res.items()}
