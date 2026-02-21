@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 
-def calculate_metrics(speeds, lactates, hr, v_max, app_type="hybrid", is_all_out=True):
+def calculate_metrics(speeds, lactates, hr, v_max, weight=75.0, height=180.0, shoulder_width=45.0, app_type="hybrid", is_all_out=True):
     # FIX: Umwandlung in NumPy-Arrays
     speeds = np.array(speeds)
     lactates = np.array(lactates)
