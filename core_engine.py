@@ -25,9 +25,48 @@ def calculate_metrics(speeds, lactates, hr, v_max, app_type="hybrid", is_all_out
     l_range = np.clip(spline(v_range), a_min=0.5, a_max=None)
     h_range = np.clip(hr_spline(v_range), a_min=40.0, a_max=250.0) 
 
-    # 2. Schwellenberechnung (IAS / LT2)
-    baseline = lactates[0]
+    # 2. Schwellenberechnung (Echte Baseline & Modifizierte Dmax-Methode)
+    
+    # --- SCHRITT A: Die Laktat-Senke (Echte Baseline) finden ---
+    # Wir suchen das absolute Minimum auf unserer feinen Spline-Kurve
+    min_idx = np.argmin(l_range)
+    v_min = v_range[min_idx]
+    baseline = l_range[min_idx]  # Das ist jetzt dein echter, tiefster Wert!
+    
+    # --- SCHRITT B: Die Dickhuth-Schwelle (Minimum + 1.5) ---
     ias_laktat = baseline + 1.5
+    ias_spline = UnivariateSpline(speeds, lactates - ias_laktat, s=0.5)
+    ias_roots = ias_spline.roots()
+    valid_ias_roots = [r for r in ias_roots if v_min <= r <= speeds[-1]]
+    
+    if valid_ias_roots:
+        v_ias_dickhuth = float(valid_ias_roots[0])
+    else:
+        v_ias_dickhuth = v_range[np.argmin(np.abs(l_range - ias_laktat))].item()
+
+    # --- SCHRITT C: Die Dmax-Schwelle (Der God-Tier Ansatz) ---
+    # Wir ziehen eine mathematische Linie vom Minimum-Punkt zum Maximal-Punkt
+    v_max_point = speeds[-1]
+    l_max_point = l_range[-1]
+    
+    # Steigung (m) und Y-Achsenabschnitt (b) der Dmax-Linie
+    m = (l_max_point - baseline) / (v_max_point - v_min)
+    b = baseline - m * v_min
+    
+    # Wir suchen den Punkt auf dem Spline, der am weitesten unter dieser Linie liegt
+    # Abstand = Gerade(v) - Spline(v)
+    dmax_distances = (m * v_range + b) - l_range
+    
+    # Wir betrachten nur den Bereich NACH dem Minimum
+    valid_indices = np.where(v_range >= v_min)[0]
+    best_idx = valid_indices[np.argmax(dmax_distances[valid_indices])]
+    
+    v_ias_dmax = v_range[best_idx].item()
+    l_ias_dmax = l_range[best_idx].item()
+
+    # ENTSCHEIDUNG: Wir nehmen den Mittelweg aus beiden Welten für maximale Stabilität
+    v_ias = round((v_ias_dickhuth + v_ias_dmax) / 2, 2)
+    ias_laktat = round(spline(v_ias).item(), 2)
     
     # UPGRADE 2: Mathematische Finesse (Exakte Nullstellensuche statt Annäherung)
     # Wir verschieben die Kurve nach unten und suchen den exakten X-Schnittpunkt
@@ -91,11 +130,11 @@ def calculate_metrics(speeds, lactates, hr, v_max, app_type="hybrid", is_all_out
     hf_ias = int(np.clip(hr_spline(v_ias), 40, 250))
     hf_fatmax = int(np.clip(hr_spline(v_fatmax), 40, 250))
 
-    # 6. LT1 (Aerobe Schwelle) - Ebenfalls mit exakter Nullstellensuche
+  # 6. LT1 (Aerobe Schwelle) - Jetzt auch basierend auf dem Minimum
     ias_lt1 = baseline + 0.5
     lt1_spline = UnivariateSpline(speeds, lactates - ias_lt1, s=0.5)
     lt1_roots = lt1_spline.roots()
-    valid_lt1_roots = [r for r in lt1_roots if speeds[0] <= r <= speeds[-1]]
+    valid_lt1_roots = [r for r in lt1_roots if v_min <= r <= speeds[-1]]
     
     if valid_lt1_roots:
         v_lt1 = float(valid_lt1_roots[0])
@@ -103,7 +142,6 @@ def calculate_metrics(speeds, lactates, hr, v_max, app_type="hybrid", is_all_out
         v_lt1 = v_range[np.argmin(np.abs(l_range - ias_lt1))].item()
         
     hf_lt1 = int(np.clip(hr_spline(v_lt1), 40, 250))
-
     # 7. Finaler Return
     return {
         "v_ias": v_ias, "lt2": v_ias,
