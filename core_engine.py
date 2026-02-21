@@ -74,21 +74,27 @@ def calculate_metrics(speeds, lactates, hr, v_max, app_type="hybrid", is_all_out
     # Den dazugehörigen Laktatwert auf der Kurve ablesen
     ias_laktat = round(spline(v_ias).item(), 2)
     
-    # 3. VO2max & RADIKALE VLAMAX-ANALYSE (Last-Step-Focus)
+# 3. VO2max & RADIKALE VLAMAX-ANALYSE (Last-Step-Focus)
     vo2max_est = 3.5 * v_max
     last_slope = 0.0  # Sicherheits-Initialisierung
     
+    # Wir schauen uns explizit die Steigung der LETZTEN BEIDEN Punkte an
+    # Das ist der Moment der maximalen Ausbelastung
     if len(speeds) >= 2:
         last_delta_l = lactates[-1] - lactates[-2]
         last_delta_v = speeds[-1] - speeds[-2]
         
+        # Sicherstellen, dass keine Division durch Null passiert
         if last_delta_v != 0:
             last_slope = last_delta_l / last_delta_v
         else:
             last_slope = 0.0
         
-        vlamax_score = np.clip(last_slope / 2.5, 0.3, 1.0)
+        # DIE KALIBRIERUNG: Teiler 4.0 skaliert den Anstieg auf realistische VLaMax-Werte (0.3 - 0.9)
+        # Ein Anstieg von 2.0 mmol/l auf der letzten Stufe ergibt exakt 0.5 (Perfekter Allrounder)
+        vlamax_score = np.clip(last_slope / 4.0, 0.3, 1.0)
     else:
+        # Standardwert, falls zu wenig Daten vorliegen
         vlamax_score = 0.5
         last_slope = 0.0
 
