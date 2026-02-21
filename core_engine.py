@@ -25,62 +25,55 @@ def calculate_metrics(speeds, lactates, hr, v_max, app_type="hybrid", is_all_out
     l_range = np.clip(spline(v_range), a_min=0.5, a_max=None)
     h_range = np.clip(hr_spline(v_range), a_min=40.0, a_max=250.0) 
 
-    # 2. Schwellenberechnung (Echte Baseline & Modifizierte Dmax-Methode)
+    # 2. Schwellenberechnung (Die "Srdan-Weiche": Dmax vs. Dickhuth)
     
-    # --- SCHRITT A: Die Laktat-Senke (Echte Baseline) finden ---
+    # --- SCHRITT A: Die echte Laktat-Senke (Baseline) finden ---
     # Wir suchen das absolute Minimum auf unserer feinen Spline-Kurve
     min_idx = np.argmin(l_range)
     v_min = v_range[min_idx]
-    baseline = l_range[min_idx]  # Das ist jetzt dein echter, tiefster Wert!
+    baseline = l_range[min_idx]  # Der tiefste Punkt, nicht zwingend der erste!
     
-    # --- SCHRITT B: Die Dickhuth-Schwelle (Minimum + 1.5) ---
-    ias_laktat = baseline + 1.5
-    ias_spline = UnivariateSpline(speeds, lactates - ias_laktat, s=0.5)
+    # --- SCHRITT B: Die Dickhuth-Schwelle (Minimum + 1.5) berechnen ---
+    ias_laktat_dickhuth = baseline + 1.5
+    ias_spline = UnivariateSpline(speeds, lactates - ias_laktat_dickhuth, s=0.5)
     ias_roots = ias_spline.roots()
     valid_ias_roots = [r for r in ias_roots if v_min <= r <= speeds[-1]]
     
     if valid_ias_roots:
         v_ias_dickhuth = float(valid_ias_roots[0])
     else:
-        v_ias_dickhuth = v_range[np.argmin(np.abs(l_range - ias_laktat))].item()
+        v_ias_dickhuth = v_range[np.argmin(np.abs(l_range - ias_laktat_dickhuth))].item()
 
-    # --- SCHRITT C: Die Dmax-Schwelle (Der God-Tier Ansatz) ---
-    # Wir ziehen eine mathematische Linie vom Minimum-Punkt zum Maximal-Punkt
+    # --- SCHRITT C: Die Modifizierte Dmax-Schwelle berechnen ---
     v_max_point = speeds[-1]
     l_max_point = l_range[-1]
     
-    # Steigung (m) und Y-Achsenabschnitt (b) der Dmax-Linie
-    m = (l_max_point - baseline) / (v_max_point - v_min)
+    # Lineare Gleichung für das "Seil" zwischen Minimum und Maximum (y = mx + b)
+    m = (l_max_point - baseline) / (v_max_point - v_min) if v_max_point != v_min else 0
     b = baseline - m * v_min
     
-    # Wir suchen den Punkt auf dem Spline, der am weitesten unter dieser Linie liegt
-    # Abstand = Gerade(v) - Spline(v)
-    dmax_distances = (m * v_range + b) - l_range
-    
-    # Wir betrachten nur den Bereich NACH dem Minimum
+    # Abstand zwischen Kurve und Seil berechnen (nur für den ansteigenden Teil)
     valid_indices = np.where(v_range >= v_min)[0]
-    best_idx = valid_indices[np.argmax(dmax_distances[valid_indices])]
+    v_valid = v_range[valid_indices]
+    l_valid = l_range[valid_indices]
     
-    v_ias_dmax = v_range[best_idx].item()
-    l_ias_dmax = l_range[best_idx].item()
+    dmax_distances = (m * v_valid + b) - l_valid
+    best_idx_sub = np.argmax(dmax_distances)
+    v_ias_dmax = v_valid[best_idx_sub].item()
 
-    # ENTSCHEIDUNG: Wir nehmen den Mittelweg aus beiden Welten für maximale Stabilität
-    v_ias = round((v_ias_dickhuth + v_ias_dmax) / 2, 2)
+    # --- SCHRITT D: DIE WEICHE (Entscheidung durch UI-Input) ---
+    if is_all_out:
+        # Athlet war am Limit -> Individuelle Kurvenform ist verlässlich
+        v_ias = round(v_ias_dmax, 2)
+        calc_method = "DMAX"
+    else:
+        # Submaximaler Test -> Dmax wäre fehlerhaft, wir nutzen den sicheren Anker
+        v_ias = round(v_ias_dickhuth, 2)
+        calc_method = "DICKHUTH (+1.5)"
+
+    # Den dazugehörigen Laktatwert auf der Kurve ablesen
     ias_laktat = round(spline(v_ias).item(), 2)
     
-    # UPGRADE 2: Mathematische Finesse (Exakte Nullstellensuche statt Annäherung)
-    # Wir verschieben die Kurve nach unten und suchen den exakten X-Schnittpunkt
-    ias_spline = UnivariateSpline(speeds, lactates - ias_laktat, s=0.5)
-    ias_roots = ias_spline.roots()
-    # Nur Schnittpunkte im gemessenen Geschwindigkeitsbereich zulassen
-    valid_ias_roots = [r for r in ias_roots if speeds[0] <= r <= speeds[-1]]
-    
-    if valid_ias_roots:
-        v_ias = float(valid_ias_roots[0])  # Der exakte Punkt
-    else:
-        # Fallback, falls die Kurve den Wert nie trifft
-        v_ias = v_range[np.argmin(np.abs(l_range - ias_laktat))].item()
-
     # 3. VO2max & RADIKALE VLAMAX-ANALYSE (Last-Step-Focus)
     vo2max_est = 3.5 * v_max
     last_slope = 0.0  # Sicherheits-Initialisierung
