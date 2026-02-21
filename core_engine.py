@@ -74,12 +74,38 @@ def calculate_metrics(speeds, lactates, hr, v_max, app_type="hybrid", is_all_out
     # Den dazugehörigen Laktatwert auf der Kurve ablesen
     ias_laktat = round(spline(v_ias).item(), 2)
     
-# 3. VO2max & RADIKALE VLAMAX-ANALYSE (Last-Step-Focus)
-    vo2max_est = 3.5 * v_max
+# 3. VO2max SCHÄTZUNG (GOD-TIER: ACSM + Aerodynamische Stirnflächen-Kompensation)
+    
+    # A) Die klassische Basis-Arbeit (Flaches Laufband ohne Wind)
+    v_m_min = v_max * 16.667  # Umrechnung km/h in m/min
+    vo2_base = (0.2 * v_m_min) + 3.5  # Ruhewert + mechanische Fortbewegung
+    
+    # B) Die Aerodynamik (Der Srdan-Faktor)
+    # 1. Stirnfläche (A) in Quadratmetern berechnen
+    height_m = height / 100.0
+    shoulder_m = shoulder_width / 100.0
+    A = height_m * shoulder_m * 0.75  # Geometrischer Korrekturfaktor für die Silhouette
+    
+    # 2. Geschwindigkeit in Meter pro Sekunde (m/s) für die Physik-Formel
+    v_ms = v_max / 3.6
+    
+    # 3. Aerodynamische Leistung (P_aero) in Watt berechnen
+    # rho (Luftdichte) = 1.2 kg/m^3, C_d (Luftwiderstandsbeiwert Mensch) = 0.9
+    p_aero_watt = 0.5 * 1.2 * 0.9 * A * (v_ms ** 3)
+    
+    # 4. Watt in Sauerstoffbedarf (ml O2/min) umrechnen
+    # 1 Watt mechanische Leistung erfordert ca. 12 ml O2/min metabolisch
+    vo2_aero_total = p_aero_watt * 12.0
+    
+    # 5. Relativen aerodynamischen Sauerstoffbedarf berechnen (auf Körpergewicht normiert)
+    vo2_aero_rel = vo2_aero_total / weight
+    
+    # C) Die Fusion: Base + Aero
+    vo2max_est = round(vo2_base + vo2_aero_rel, 1)
+    
+    # --- RADIKALE VLAMAX-ANALYSE (Last-Step-Focus) ---
     last_slope = 0.0  # Sicherheits-Initialisierung
     
-    # Wir schauen uns explizit die Steigung der LETZTEN BEIDEN Punkte an
-    # Das ist der Moment der maximalen Ausbelastung
     if len(speeds) >= 2:
         last_delta_l = lactates[-1] - lactates[-2]
         last_delta_v = speeds[-1] - speeds[-2]
@@ -91,7 +117,6 @@ def calculate_metrics(speeds, lactates, hr, v_max, app_type="hybrid", is_all_out
             last_slope = 0.0
         
         # DIE KALIBRIERUNG: Teiler 4.0 skaliert den Anstieg auf realistische VLaMax-Werte (0.3 - 0.9)
-        # Ein Anstieg von 2.0 mmol/l auf der letzten Stufe ergibt exakt 0.5 (Perfekter Allrounder)
         vlamax_score = np.clip(last_slope / 4.0, 0.3, 1.0)
     else:
         # Standardwert, falls zu wenig Daten vorliegen
