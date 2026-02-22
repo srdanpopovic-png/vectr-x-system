@@ -5,7 +5,7 @@ import math
 # ==========================================
 # MODUL 1: BASIS-DIAGNOSTIK (Spline Run)
 # ==========================================
-def calculate_base_diagnostics(speeds, lactates, hr, v_max, weight=75.0, height=180.0, shoulder_width=45.0):
+def calculate_metrics(speeds, lactates, hr, v_max, weight=75.0, height=180.0, shoulder_width=45.0, app_type="hybrid", is_all_out=True):
     # 1. Input-Sicherung & Längen-Check
     if not speeds or len(speeds) < 4:
         return {"status": "error", "message": "Mindestens 4 Stufen für Spline-Mathematik erforderlich."}
